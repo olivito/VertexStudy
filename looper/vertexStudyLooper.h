@@ -113,6 +113,10 @@ private:
   TH1F* h_pfjet_beta;
   TH2F* h_pfjet_beta_vs_vtx0_purity_dz;
   TH2F* h_pfjet_beta_vs_nvtx;
+
+  TH1F* h_nomatch_trk_pt;
+  TH1F* h_nomatch_trk_pt_low;
+  TH1F* h_nomatch_trk_pt_mid;
 };
 
 #endif

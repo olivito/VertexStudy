@@ -405,7 +405,13 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	  if(weightvtx == 0) h_dz_trk_vtx0_weight->Fill(trks_dz_pv(itrk,0).first);
 	}
 	// check that track is matched to status 1 particle from hard scatter
-	if (trk_mc_id().at(itrk) == -9999) continue;
+	if (trk_mc_id().at(itrk) == -9999) {
+	  // pileup track distributions
+	  h_nomatch_trk_pt->Fill(trks_trk_p4().at(itrk).pt());
+	  h_nomatch_trk_pt_low->Fill(trks_trk_p4().at(itrk).pt());
+	  h_nomatch_trk_pt_mid->Fill(trks_trk_p4().at(itrk).pt());
+	  continue;
+	}
 
 	h_match_dr->Fill(trk_mcdr().at(itrk));
 
@@ -748,6 +754,9 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_pfjet_beta_vs_vtx0_purity_dz = new TH2F(Form("%s_pfjet_beta_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;pfjet beta",100,0,1.,100,0.,1.);
   h_pfjet_beta_vs_nvtx = new TH2F(Form("%s_pfjet_beta_vs_nvtx",prefix.Data()),";nvtx;pfjet beta",50,0,50,100,0.,1.);
 
+  h_nomatch_trk_pt = new TH1F(Form("%s_nomatch_trk_pt",prefix.Data()),";p_{T} (tracks, not matched) [GeV]",500,0.,100.);
+  h_nomatch_trk_pt_low = new TH1F(Form("%s_nomatch_trk_pt_low",prefix.Data()),";p_{T} (tracks, not matched) [GeV]",100,0.,1.);
+  h_nomatch_trk_pt_mid = new TH1F(Form("%s_nomatch_trk_pt_mid",prefix.Data()),";p_{T} (tracks, not matched) [GeV]",100,1.,10.);
  
   cout << "End book histos..." << endl;
 }// CMS2::BookHistos()
