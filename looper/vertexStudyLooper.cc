@@ -17,11 +17,13 @@
 bool verbose              = false;
 bool doTenPercent         = false;
 bool requireLeps          = false;
+bool doFiducialVtx        = true;
 
-const float dzcut = 1.;
+const float dzcut = 0.1;
 const float drcut = 0.015;
-const float dz_gen_vtx_match = 1.;
+const float dz_gen_vtx_match = 0.1;
 const float fracpt_gen_vtx_match = 0.1;
+const float fidvtx_cut = 15.;
 
 using namespace std;
 using namespace tas;
@@ -347,15 +349,20 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       }
    
       int nleps = 0;
-      // loop over genps, count e and mu with pt > 15 gev
+      // loop over genps, count e and mu with pt > 20 gev
       for (unsigned int igen = 0; igen < genps_status().size(); ++igen) {
 	if (genps_status().at(igen) != 3) continue;
-	if (genps_p4().at(igen).pt() < 15.) continue;
+	if (genps_p4().at(igen).pt() < 20.) continue;
 	int id = abs(genps_id().at(igen));
 	if (id == 11 || id == 13) ++nleps;
       }
 
       if (requireLeps && !nleps) continue;
+
+      // check gen production vtx by looking at status 3 particles
+      // and make fiducial cut if requested
+      float genvtx_z = genps_prod_vtx().at(2).z();
+      if (doFiducialVtx && (fabs(genvtx_z) > fidvtx_cut)) continue;
 
       ++nEventsPass;
 
@@ -507,6 +514,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	// count good vertices
 	if (!isGoodVertex(ivtx)) continue;
 	++nvtx;
+	h_recovtx_z->Fill(vtxs_position().at(ivtx).z());
 
 	// check to see if hard scatter vertex is among the reco vtx collection
 	// if already matched to a higher sum pt^2 vertex, don't bother
@@ -514,7 +522,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	// require: 
 	//  |dz| < 1mm from true hard scatter vtx
 	//  at least 10% of hard scatter pt
-	if (fabs(vtxs_position().at(ivtx).z() - genps_prod_vtx().at(2).z()) > dz_gen_vtx_match ) continue;
+	if (fabs(vtxs_position().at(ivtx).z() - genvtx_z) > dz_gen_vtx_match ) continue;
 	//	if (vtxs_sumpt_hardscatter_dz.at(ivtx)/vtxs_sumpt_recalc_dz.at(ivtx) < fracpt_gen_vtx_match ) continue;
 
 	float purity_dz = vtxs_sumpt_hardscatter_dz.at(ivtx)/vtxs_sumpt_recalc_dz.at(ivtx);
@@ -534,10 +542,15 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_vtx_best_eff_weight->Fill(eff_weight);
 	h_vtx_best_eff_weight_vs_nvtx->Fill(nvtx,eff_weight);
 
+	h_genmatch_vtx_z->Fill(vtxs_position().at(ivtx).z());
+
 	gen_match_vtx = ivtx;
       }
       h_nvtx->Fill(nvtx);
       h_gen_match_vtx->Fill(gen_match_vtx);
+      h_gen_match_vtx_vs_nvtx->Fill(nvtx,gen_match_vtx);
+
+      h_genvtx_z->Fill(genvtx_z);
 
       // plots for vertex 0
       const int vtx0 = 0;
@@ -710,6 +723,11 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_match_dr = new TH1F(Form("%s_match_dr",prefix.Data()),";dR(reco,gen)",40,0.,0.2);
   h_nvtx = new TH1F(Form("%s_nvtx",prefix.Data()),";N(vtx)",50,0,50);
   h_gen_match_vtx = new TH1F(Form("%s_gen_match_vtx",prefix.Data()),";reco index of true PV",51,-1,50);
+  h_gen_match_vtx_vs_nvtx = new TH2F(Form("%s_gen_match_vtx_vs_nvtx",prefix.Data()),";N(vtx);reco index of true PV",50,0,50,51,-1,50);
+
+  h_genvtx_z = new TH1F(Form("%s_genvtx_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
+  h_genmatch_vtx_z = new TH1F(Form("%s_genmatch_vtx_z",prefix.Data()),";Z (gen match vtx) [cm]",50,-25.,25.);
+  h_recovtx_z = new TH1F(Form("%s_recovtx_z",prefix.Data()),";Z (reco vtx) [cm]",50,-25.,25.);
 
   // lepton iso, vs purity
   h_el_iso = new TH1F(Form("%s_el_iso",prefix.Data()),";electron reliso, no PU cor",100,0.,2.);

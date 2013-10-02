@@ -17,9 +17,7 @@
 #include "TFile.h"
 
 typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<float> > LorentzVector;
-//typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<float> > P4;
 typedef std::vector<ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<float> > > VofP4;
-//typedef map<unsigned int, unsigned int> m_uiui;
 
 /* ------------------------------------------------------------------------- */
 /* ------------------------------------------------------------------------- */
@@ -92,6 +90,11 @@ private:
   TH1F* h_match_dr;
   TH1F* h_nvtx;
   TH1F* h_gen_match_vtx;
+  TH2F* h_gen_match_vtx_vs_nvtx;
+
+  TH1F* h_genvtx_z;
+  TH1F* h_genmatch_vtx_z;
+  TH1F* h_recovtx_z;
 
   TH1F* h_el_iso;
   TH1F* h_el_iso_cor;
