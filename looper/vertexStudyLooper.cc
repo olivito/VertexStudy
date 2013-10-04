@@ -9,6 +9,8 @@
 
 #include "../CORE/eventSelections.h"
 #include "../CORE/trackSelections.h"
+#include "../CORE/susySelections.h"
+#include "../CORE/muonSelections.h"
 #include "../CORE/jetSelections.h"
 #include "../CORE/metSelections.h"
 #include "../CORE/jetSmearingTools.h"
@@ -24,6 +26,7 @@ const float drcut = 0.015;
 const float dz_gen_vtx_match = 0.1;
 const float fracpt_gen_vtx_match = 0.1;
 const float fidvtx_cut = 15.;
+const float gen_dr_match = 0.2;
 
 using namespace std;
 using namespace tas;
@@ -410,6 +413,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	  h_nomatch_trk_pt->Fill(trks_trk_p4().at(itrk).pt());
 	  h_nomatch_trk_pt_low->Fill(trks_trk_p4().at(itrk).pt());
 	  h_nomatch_trk_pt_mid->Fill(trks_trk_p4().at(itrk).pt());
+	  h_nomatch_trk_pt_vs_eta->Fill(trks_trk_p4().at(itrk).eta(),trks_trk_p4().at(itrk).pt());
+	  h_nomatch_trk_pt_low_vs_eta->Fill(trks_trk_p4().at(itrk).eta(),trks_trk_p4().at(itrk).pt());
 	  continue;
 	}
 
@@ -581,13 +586,26 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       // electron iso
       for (unsigned int iel = 0; iel < els_p4().size(); ++iel) {
 	// cut on pt and eta
-	if (els_p4().at(iel).pt() < 15.) continue;
+	if (els_p4().at(iel).pt() < 20.) continue;
 	if (fabs(els_p4().at(iel).eta()) > 2.4) continue;
-	// check for gen match
-	if (abs(els_mc_id().at(iel)) != 11) continue;
+	// require ID, no iso
+        if( !passElectronSelection_Stop2012_v3_NoIso( iel,true,true,false) )  continue;
+	// check for gen match: match to gen particle within dR < 0.2
+	bool matched = false;
+	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
+	  int id = fabs(genps_id().at(igen));
+	  if (id != 11) continue;
+	  float dr = dRbetweenVectors(els_p4().at(iel),genps_p4().at(igen));
+	  if (dr < gen_dr_match) {
+	    matched = true;
+	    break;
+	  }
+	}
+	if (!matched) continue;
 	// plot isolation with and without pileup correction, also vs vtx0 purity
 	float iso = electronPFiso(iel);
 	float iso_cor = electronPFiso(iel,true);
+	float trkiso = els_iso03_pf2012ext_ch().at(iel);
 
 	h_el_iso->Fill(iso);
 	h_el_iso_cor->Fill(iso_cor);
@@ -595,18 +613,35 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_el_iso_cor_vs_vtx0_purity_dz->Fill(purity_dz,iso_cor);
 	h_el_iso_vs_nvtx->Fill(nvtx,iso);
 	h_el_iso_cor_vs_nvtx->Fill(nvtx,iso_cor);
+
+	h_el_trkiso->Fill(trkiso);
+	h_el_trkiso_vs_vtx0_purity_dz->Fill(purity_dz,trkiso);
+	h_el_trkiso_vs_nvtx->Fill(nvtx,trkiso);
       }
 
       // muon iso
       for (unsigned int imu = 0; imu < mus_p4().size(); ++imu) {
 	// cut on pt and eta
-	if (mus_p4().at(imu).pt() < 15.) continue;
+	if (mus_p4().at(imu).pt() < 20.) continue;
 	if (fabs(mus_p4().at(imu).eta()) > 2.4) continue;
-	// check for gen match
-	if (abs(mus_mc_id().at(imu)) != 13) continue;
+	// require ID, no iso
+	if (!muonIdNotIsolated(imu, ZMet2012_v1)) continue;
+	// check for gen match: match to gen particle within dR < 0.2
+	bool matched = false;
+	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
+	  int id = fabs(genps_id().at(igen));
+	  if (id != 13) continue;
+	  float dr = dRbetweenVectors(mus_p4().at(imu),genps_p4().at(igen));
+	  if (dr < gen_dr_match) {
+	    matched = true;
+	    break;
+	  }
+	}
+	if (!matched) continue;
 	// plot isolation with and without pileup correction, also vs vtx0 purity
 	float iso = muonPFiso(imu);
 	float iso_cor = muonPFiso(imu,true);
+	float trkiso = mus_isoR03_pf_ChargedHadronPt().at(imu);
 
 	h_mu_iso->Fill(iso);
 	h_mu_iso_cor->Fill(iso_cor);
@@ -614,6 +649,38 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_mu_iso_cor_vs_vtx0_purity_dz->Fill(purity_dz,iso_cor);
 	h_mu_iso_vs_nvtx->Fill(nvtx,iso);
 	h_mu_iso_cor_vs_nvtx->Fill(nvtx,iso_cor);
+
+	h_mu_trkiso->Fill(trkiso);
+	h_mu_trkiso_vs_vtx0_purity_dz->Fill(purity_dz,trkiso);
+	h_mu_trkiso_vs_nvtx->Fill(nvtx,trkiso);
+      }
+
+      // photon track iso
+      for (unsigned int iph = 0; iph < photons_p4().size(); ++iph) {
+	// cut on pt and eta
+	if (photons_p4().at(iph).pt() < 20.) continue;
+	if (fabs(photons_p4().at(iph).eta()) > 2.4) continue;
+	// require ID -- not sure what to use here
+	//        if( !passElectronSelection_Stop2012_v3_NoIso( iph,true,true,false) )  continue;
+	// check for gen match: match to gen particle within dR < 0.2
+	bool matched = false;
+	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
+	  int id = fabs(genps_id().at(igen));
+	  if (id != 22) continue;
+	  float dr = dRbetweenVectors(photons_p4().at(iph),genps_p4().at(igen));
+	  if (dr < gen_dr_match) {
+	    matched = true;
+	    break;
+	  }
+	}
+	if (!matched) continue;
+	// plot (hollow) track isolation / pt
+	//	float iso = photons_tkIsoHollow03().at(iph)/photons_p4().at(iph).pt();
+	float iso = photonHollowTrkIso(iph)/photons_p4().at(iph).pt();
+
+	h_ph_trkiso->Fill(iso);
+	h_ph_trkiso_vs_vtx0_purity_dz->Fill(purity_dz,iso);
+	h_ph_trkiso_vs_nvtx->Fill(nvtx,iso);
       }
 
       // jet beta
@@ -743,12 +810,24 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_el_iso_vs_nvtx = new TH2F(Form("%s_el_iso_vs_nvtx",prefix.Data()),";nvtx;electron reliso, no PU cor",50,0,50,100,0.,2.);
   h_el_iso_cor_vs_nvtx = new TH2F(Form("%s_el_iso_cor_vs_nvtx",prefix.Data()),";nvtx;electron reliso, with PU cor",50,0,50,100,0.,2.);
 
+  h_el_trkiso = new TH1F(Form("%s_el_trkiso",prefix.Data()),";el rel trkiso",1000,0.,2.);
+  h_el_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_el_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;el rel trkiso",100,0,1.,1000,0.,2.);
+  h_el_trkiso_vs_nvtx = new TH2F(Form("%s_el_trkiso_vs_nvtx",prefix.Data()),";nvtx;el rel trkiso",50,0,50,1000,0.,2.);
+
   h_mu_iso = new TH1F(Form("%s_mu_iso",prefix.Data()),";mu reliso, no PU cor",100,0.,2.);
   h_mu_iso_cor = new TH1F(Form("%s_mu_iso_cor",prefix.Data()),";mu reliso, with PU cor",100,0.,2.);
   h_mu_iso_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, no PU cor",100,0,1.,100,0.,2.);
   h_mu_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, with PU cor",100,0,1.,100,0.,2.);
   h_mu_iso_vs_nvtx = new TH2F(Form("%s_mu_iso_vs_nvtx",prefix.Data()),";nvtx;mu reliso, no PU cor",50,0,50,100,0.,2.);
   h_mu_iso_cor_vs_nvtx = new TH2F(Form("%s_mu_iso_cor_vs_nvtx",prefix.Data()),";nvtx;mu reliso, with PU cor",50,0,50,100,0.,2.);
+
+  h_mu_trkiso = new TH1F(Form("%s_mu_trkiso",prefix.Data()),";mu rel trkiso",1000,0.,2.);
+  h_mu_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu rel trkiso",100,0,1.,1000,0.,2.);
+  h_mu_trkiso_vs_nvtx = new TH2F(Form("%s_mu_trkiso_vs_nvtx",prefix.Data()),";nvtx;mu rel trkiso",50,0,50,1000,0.,2.);
+
+  h_ph_trkiso = new TH1F(Form("%s_ph_trkiso",prefix.Data()),";ph trkiso",1000,0.,2.);
+  h_ph_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_ph_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;ph trkiso",100,0,1.,1000,0.,2.);
+  h_ph_trkiso_vs_nvtx = new TH2F(Form("%s_ph_trkiso_vs_nvtx",prefix.Data()),";nvtx;ph trkiso",50,0,50,1000,0.,2.);
 
   h_pfjet_beta = new TH1F(Form("%s_pfjet_beta",prefix.Data()),";pfjet beta",100,0.,1.);
   h_pfjet_beta_vs_vtx0_purity_dz = new TH2F(Form("%s_pfjet_beta_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;pfjet beta",100,0,1.,100,0.,1.);
@@ -758,6 +837,9 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_nomatch_trk_pt_low = new TH1F(Form("%s_nomatch_trk_pt_low",prefix.Data()),";p_{T} (tracks, not matched) [GeV]",100,0.,1.);
   h_nomatch_trk_pt_mid = new TH1F(Form("%s_nomatch_trk_pt_mid",prefix.Data()),";p_{T} (tracks, not matched) [GeV]",100,1.,10.);
  
+  h_nomatch_trk_pt_vs_eta = new TH2F(Form("%s_nomatch_trk_pt_vs_eta",prefix.Data()),";#eta (tracks, not matched);p_{T} (tracks, not matched) [GeV]",50,-2.5,2.5,500,0.,100.);
+  h_nomatch_trk_pt_low_vs_eta = new TH2F(Form("%s_nomatch_trk_pt_low_vs_eta",prefix.Data()),";#eta (tracks, not matched);p_{T} (tracks, not matched) [GeV]",50,-2.5,2.5,100,0.,1.);
+
   cout << "End book histos..." << endl;
 }// CMS2::BookHistos()
 
@@ -840,5 +922,23 @@ float vertexStudyLooper::muonPFiso(const unsigned int imu, const bool cor) {
   if (cor) absiso = chiso + std::max(0.0, nhiso + emiso - 0.5 * deltaBeta);
   return (absiso / pt);
 
+}
+
+//--------------------------------------------------------------------
+
+float vertexStudyLooper::photonHollowTrkIso(const unsigned int iph) {
+
+  float dR_outer = 0.3;
+  float dR_inner = 0.05;
+  float iso_sum = 0.;
+
+  for( unsigned int itrk = 0; itrk < cms2.trks_trk_p4().size(); ++itrk ){
+    float dR = dRbetweenVectors( cms2.photons_p4().at(iph), cms2.trks_trk_p4().at(itrk) );
+    if( dR < dR_outer && dR > dR_inner ){
+      iso_sum += cms2.trks_trk_p4().at(itrk).pt();         
+    }
+  }
+
+  return iso_sum;
 }
 

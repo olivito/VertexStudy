@@ -35,6 +35,7 @@ public:
   int associateTrackToVertexSimple(const unsigned int itrk);
   float electronPFiso(const unsigned int index, const bool cor = false);
   float muonPFiso(const unsigned int imu, const bool cor = false);
+  float photonHollowTrkIso(const unsigned int iph);
   float dRbetweenVectors(LorentzVector vec1, LorentzVector vec2 );
 
   // Set globals
@@ -102,6 +103,9 @@ private:
   TH2F* h_el_iso_cor_vs_vtx0_purity_dz;
   TH2F* h_el_iso_vs_nvtx;
   TH2F* h_el_iso_cor_vs_nvtx;
+  TH1F* h_el_trkiso;
+  TH2F* h_el_trkiso_vs_vtx0_purity_dz;
+  TH2F* h_el_trkiso_vs_nvtx;
 
   TH1F* h_mu_iso;
   TH1F* h_mu_iso_cor;
@@ -109,6 +113,13 @@ private:
   TH2F* h_mu_iso_cor_vs_vtx0_purity_dz;
   TH2F* h_mu_iso_vs_nvtx;
   TH2F* h_mu_iso_cor_vs_nvtx;
+  TH1F* h_mu_trkiso;
+  TH2F* h_mu_trkiso_vs_vtx0_purity_dz;
+  TH2F* h_mu_trkiso_vs_nvtx;
+
+  TH1F* h_ph_trkiso;
+  TH2F* h_ph_trkiso_vs_vtx0_purity_dz;
+  TH2F* h_ph_trkiso_vs_nvtx;
 
   TH1F* h_pfjet_beta;
   TH2F* h_pfjet_beta_vs_vtx0_purity_dz;
@@ -117,6 +128,10 @@ private:
   TH1F* h_nomatch_trk_pt;
   TH1F* h_nomatch_trk_pt_low;
   TH1F* h_nomatch_trk_pt_mid;
+
+  TH2F* h_nomatch_trk_pt_vs_eta;
+  TH2F* h_nomatch_trk_pt_low_vs_eta;
+
 };
 
 #endif
