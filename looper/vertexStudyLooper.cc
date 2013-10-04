@@ -605,7 +605,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	// plot isolation with and without pileup correction, also vs vtx0 purity
 	float iso = electronPFiso(iel);
 	float iso_cor = electronPFiso(iel,true);
-	float trkiso = els_iso03_pf2012ext_ch().at(iel);
+	float trkiso = els_iso03_pf2012ext_ch().at(iel)/els_p4().at(iel).pt();
 
 	h_el_iso->Fill(iso);
 	h_el_iso_cor->Fill(iso_cor);
@@ -641,7 +641,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	// plot isolation with and without pileup correction, also vs vtx0 purity
 	float iso = muonPFiso(imu);
 	float iso_cor = muonPFiso(imu,true);
-	float trkiso = mus_isoR03_pf_ChargedHadronPt().at(imu);
+	float trkiso = mus_isoR03_pf_ChargedHadronPt().at(imu)/mus_p4().at(imu).pt();
 
 	h_mu_iso->Fill(iso);
 	h_mu_iso_cor->Fill(iso_cor);
