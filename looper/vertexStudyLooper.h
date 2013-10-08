@@ -37,6 +37,7 @@ public:
   float muonPFiso(const unsigned int imu, const bool cor = false);
   float photonHollowTrkIso(const unsigned int iph);
   float dRbetweenVectors(LorentzVector vec1, LorentzVector vec2 );
+  float genSumPt2();
 
   // Set globals
   void set_createTree   (bool  b)    { g_createTree   = b; }
@@ -93,9 +94,21 @@ private:
   TH1F* h_gen_match_vtx;
   TH2F* h_gen_match_vtx_vs_nvtx;
 
+  TH1F* h_genvtx_z_nocut;
   TH1F* h_genvtx_z;
+  TH1F* h_genmatch_vtx_sumpt2;
   TH1F* h_genmatch_vtx_z;
   TH1F* h_recovtx_z;
+
+  TH1F* h_genvtx_nomatch_z;
+  TH1F* h_genvtx_nomatch_gensumpt2;
+  TH1F* h_genvtx_othermatch_z;
+  TH1F* h_genvtx_othermatch_gensumpt2;
+  TH1F* h_genvtx_othermatch_sumpt2;
+
+  TH1F* h_vtx_sumpt2;
+  TH1F* h_vtx_nogen_sumpt2;
+  TH1F* h_vtx_nogen_nohs_sumpt2;
 
   TH1F* h_el_iso;
   TH1F* h_el_iso_cor;

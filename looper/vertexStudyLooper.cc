@@ -18,7 +18,7 @@
 
 bool verbose              = false;
 bool doTenPercent         = false;
-bool requireLeps          = false;
+bool requireLeps          = true;
 bool doFiducialVtx        = true;
 
 const float dzcut = 0.1;
@@ -365,9 +365,11 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       // check gen production vtx by looking at status 3 particles
       // and make fiducial cut if requested
       float genvtx_z = genps_prod_vtx().at(2).z();
+      h_genvtx_z_nocut->Fill(genvtx_z);
       if (doFiducialVtx && (fabs(genvtx_z) > fidvtx_cut)) continue;
 
       ++nEventsPass;
+      float genvtx_sumpt2 = genSumPt2();
 
       //---------------------------------------------
       // loop over tracks, associate to vtx
@@ -379,6 +381,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       std::vector<float> vtxs_sumpt_hardscatter_dz(vtxs_sumpt().size(), 0.);
       std::vector<float> vtxs_sumpt_hardscatter_weight(vtxs_sumpt().size(), 0.);
       std::vector<float> vtxs_fracpt_hardscatter(vtxs_sumpt().size(), -1.);
+      std::vector<float> vtxs_sumpt2_weight(vtxs_sumpt().size(), 0.);
+      std::vector<float> vtxs_sumpt2_nogen_weight(vtxs_sumpt().size(), 0.);
       std::map<int,std::vector<int> > mc_idx_reco_matches;
       int mc_idx_duplicates = 0;
       float sum_hardscatter_pt = 0.;
@@ -405,6 +409,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	vtxs_sumpt_recalc_dz.at(bestdzvtx) += trks_trk_p4().at(itrk).pt();
 	if (weightvtx > -9000) {
 	  vtxs_sumpt_recalc_weight.at(weightvtx) += trks_trk_p4().at(itrk).pt();
+	  vtxs_sumpt2_weight.at(weightvtx) += pow(trks_trk_p4().at(itrk).pt(),2);
 	  if(weightvtx == 0) h_dz_trk_vtx0_weight->Fill(trks_dz_pv(itrk,0).first);
 	}
 	// check that track is matched to status 1 particle from hard scatter
@@ -415,6 +420,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	  h_nomatch_trk_pt_mid->Fill(trks_trk_p4().at(itrk).pt());
 	  h_nomatch_trk_pt_vs_eta->Fill(trks_trk_p4().at(itrk).eta(),trks_trk_p4().at(itrk).pt());
 	  h_nomatch_trk_pt_low_vs_eta->Fill(trks_trk_p4().at(itrk).eta(),trks_trk_p4().at(itrk).pt());
+	  if (weightvtx > -9000) vtxs_sumpt2_nogen_weight.at(weightvtx) += pow(trks_trk_p4().at(itrk).pt(),2);
 	  continue;
 	}
 
@@ -432,18 +438,11 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	  std::vector<int> reco_matches(1,itrk);
 	  mc_idx_reco_matches[trk_mcidx().at(itrk)] = reco_matches;
 	}
+      } // loop over tracks
 
-	// vtxs_sumpt_hardscatter_dz.at(bestdzvtx) += trks_trk_p4().at(itrk).pt();
-	// if (weightvtx > -9000) {
-	//   vtxs_sumpt_hardscatter_weight.at(weightvtx) += trks_trk_p4().at(itrk).pt();
-	//   if (weightvtx != 0) {
-	//     h_hs_trk_dz_vtxs->Fill(vtxs_position().at(weightvtx).z() - vtxs_position().at(0).z());
-	//     h_hs_trk_dz_vtx0->Fill(trks_dz_pv(itrk, 0).first);
-	//   }
-	// }
-	// sum_hardscatter_pt += trks_trk_p4().at(itrk).pt();
-
-      }
+      //---------------------------------------------
+      // loop over matched gen particles
+      //---------------------------------------------
 
       h_mc_idx_duplicates->Fill(mc_idx_duplicates);
       // loop again to decide on duplicate matches, save/plot quantities for hard scatter
@@ -505,19 +504,9 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 
       } // loop over matched gen particles
 
-      // for (unsigned int itrk = 0; itrk < trks_trk_p4().size(); ++itrk) {
-      // 	if (trk_mc_id().at(itrk) == -9999) continue;
-      // 	if (mc_idxs[trk_mcidx().at(itrk)] < 2) continue;
-      // 	// only consider high purity tracks: bit 2 of quality mask
-      // 	if (!(trks_qualityMask().at(itrk) & (1<<2))) continue;
-      // 	// apply cut on dR of reco/gen match to remove multiply matched tracks
-      // 	if (trk_mcdr().at(itrk) > drcut) continue;
-
-      // 	// make plots only for surviving tracks
-      // 	h_mc_idx_duplicates_dr->Fill(trk_mcdr().at(itrk));
-      // 	h_mc_idx_duplicates_pt->Fill(trks_trk_p4().at(itrk).pt());
-      // 	h_mc_idx_duplicates_nhits->Fill(trks_validHits().at(itrk));
-      // }
+      //---------------------------------------------
+      // loop over vertices
+      //---------------------------------------------
 
       int nvtx = 0;
       int gen_match_vtx = -1;
@@ -526,6 +515,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	if (!isGoodVertex(ivtx)) continue;
 	++nvtx;
 	h_recovtx_z->Fill(vtxs_position().at(ivtx).z());
+	h_vtx_sumpt2->Fill(vtxs_sumpt2_weight.at(ivtx));
+	h_vtx_nogen_sumpt2->Fill(vtxs_sumpt2_nogen_weight.at(ivtx));
 
 	// check to see if hard scatter vertex is among the reco vtx collection
 	// if already matched to a higher sum pt^2 vertex, don't bother
@@ -554,6 +545,14 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_vtx_best_eff_weight_vs_nvtx->Fill(nvtx,eff_weight);
 
 	h_genmatch_vtx_z->Fill(vtxs_position().at(ivtx).z());
+	h_genmatch_vtx_sumpt2->Fill(vtxs_sumpt2_weight.at(ivtx));
+
+	// if not matched to vtx0
+	if (ivtx > 0) {
+	  h_genvtx_othermatch_z->Fill(genvtx_z);
+	  h_genvtx_othermatch_gensumpt2->Fill(genvtx_sumpt2);
+	  h_genvtx_othermatch_sumpt2->Fill(vtxs_sumpt2_weight.at(ivtx));
+	}
 
 	gen_match_vtx = ivtx;
       }
@@ -563,7 +562,24 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 
       h_genvtx_z->Fill(genvtx_z);
 
+      // no matched vertex
+      if (gen_match_vtx == -1) {
+	h_genvtx_nomatch_z->Fill(genvtx_z);
+	h_genvtx_nomatch_gensumpt2->Fill(genvtx_sumpt2);
+      }
+
+      // loop back over vertices to make plots for all except hard scatter vtx
+      for (unsigned int ivtx = 0; ivtx < vtxs_sumpt().size(); ++ivtx) {
+	// only good vertices
+	if (!isGoodVertex(ivtx)) continue;
+	if (ivtx == gen_match_vtx) continue;
+	h_vtx_nogen_nohs_sumpt2->Fill(vtxs_sumpt2_nogen_weight.at(ivtx));
+      }
+
+      //---------------------------------------------
       // plots for vertex 0
+      //---------------------------------------------
+
       const int vtx0 = 0;
       float purity_dz = vtxs_sumpt_hardscatter_dz.at(vtx0)/vtxs_sumpt_recalc_dz.at(vtx0);
       float purity_weight = vtxs_sumpt_hardscatter_weight.at(vtx0)/vtxs_sumpt_recalc_weight.at(vtx0);
@@ -583,7 +599,10 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       h_vtx0_hardscatter_pt_vs_sumpt_recalc->Fill(vtxs_sumpt_recalc_weight.at(vtx0),vtxs_sumpt_hardscatter_weight.at(vtx0));
       h_vtx0_sumpt_vs_sumpt_recalc->Fill(vtxs_sumpt_recalc_weight.at(vtx0),vtxs_sumpt().at(vtx0));
 
-      // electron iso
+      //---------------------------------------------
+      // loop over electrons
+      //---------------------------------------------
+
       for (unsigned int iel = 0; iel < els_p4().size(); ++iel) {
 	// cut on pt and eta
 	if (els_p4().at(iel).pt() < 20.) continue;
@@ -619,7 +638,10 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_el_trkiso_vs_nvtx->Fill(nvtx,trkiso);
       }
 
-      // muon iso
+      //---------------------------------------------
+      // loop over muons
+      //---------------------------------------------
+
       for (unsigned int imu = 0; imu < mus_p4().size(); ++imu) {
 	// cut on pt and eta
 	if (mus_p4().at(imu).pt() < 20.) continue;
@@ -655,7 +677,10 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_mu_trkiso_vs_nvtx->Fill(nvtx,trkiso);
       }
 
-      // photon track iso
+      //---------------------------------------------
+      // loop over photons
+      //---------------------------------------------
+
       for (unsigned int iph = 0; iph < photons_p4().size(); ++iph) {
 	// cut on pt and eta
 	if (photons_p4().at(iph).pt() < 20.) continue;
@@ -683,7 +708,10 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_ph_trkiso_vs_nvtx->Fill(nvtx,iso);
       }
 
-      // jet beta
+      //---------------------------------------------
+      // loop over jets
+      //---------------------------------------------
+
       for (unsigned int ijet = 0; ijet < pfjets_p4().size(); ++ijet) {
 	// pt
 	if (pfjets_p4().at(ijet).pt() < 30.) continue;
@@ -798,28 +826,40 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_gen_match_vtx = new TH1F(Form("%s_gen_match_vtx",prefix.Data()),";reco index of true PV",51,-1,50);
   h_gen_match_vtx_vs_nvtx = new TH2F(Form("%s_gen_match_vtx_vs_nvtx",prefix.Data()),";N(vtx);reco index of true PV",50,0,50,51,-1,50);
 
+  h_genvtx_z_nocut = new TH1F(Form("%s_genvtx_z_nocut",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
   h_genvtx_z = new TH1F(Form("%s_genvtx_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
+  h_genmatch_vtx_sumpt2 = new TH1F(Form("%s_genmatch_vtx_sumpt2",prefix.Data()),";#Sigma gen p_{T}^{2} [GeV^2]",2500,0.,5000.);
   h_genmatch_vtx_z = new TH1F(Form("%s_genmatch_vtx_z",prefix.Data()),";Z (gen match vtx) [cm]",50,-25.,25.);
   h_recovtx_z = new TH1F(Form("%s_recovtx_z",prefix.Data()),";Z (reco vtx) [cm]",50,-25.,25.);
 
+  h_genvtx_nomatch_z = new TH1F(Form("%s_genvtx_nomatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
+  h_genvtx_nomatch_gensumpt2 = new TH1F(Form("%s_genvtx_nomatch_gensumpt2",prefix.Data()),";#Sigma gen p_{T}^{2} [GeV^2]",2500,0.,5000.);
+  h_genvtx_othermatch_z = new TH1F(Form("%s_genvtx_othermatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
+  h_genvtx_othermatch_gensumpt2 = new TH1F(Form("%s_genvtx_othermatch_gensumpt2",prefix.Data()),";#Sigma gen p_{T}^{2} [GeV^2]",2500,0.,5000.);
+  h_genvtx_othermatch_sumpt2 = new TH1F(Form("%s_genvtx_othermatch_sumpt2",prefix.Data()),";#Sigma p_{T}^{2} [GeV^2]",2500,0.,5000.);
+
+  h_vtx_sumpt2 = new TH1F(Form("%s_vtx_sumpt2",prefix.Data()),";#Sigma p_{T}^{2} [GeV^2]",2500,0.,5000.);
+  h_vtx_nogen_sumpt2 = new TH1F(Form("%s_vtx_nogen_sumpt2",prefix.Data()),";#Sigma p_{T}^{2} [GeV^2]",2500,0.,5000.);
+  h_vtx_nogen_nohs_sumpt2 = new TH1F(Form("%s_vtx_nogen_nohs_sumpt2",prefix.Data()),";#Sigma p_{T}^{2} [GeV^2]",2500,0.,5000.);
+
   // lepton iso, vs purity
-  h_el_iso = new TH1F(Form("%s_el_iso",prefix.Data()),";electron reliso, no PU cor",100,0.,2.);
-  h_el_iso_cor = new TH1F(Form("%s_el_iso_cor",prefix.Data()),";electron reliso, with PU cor",100,0.,2.);
-  h_el_iso_vs_vtx0_purity_dz = new TH2F(Form("%s_el_iso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;electron reliso, no PU cor",100,0,1.,100,0.,2.);
-  h_el_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_el_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;electron reliso, with PU cor",100,0,1.,100,0.,2.);
-  h_el_iso_vs_nvtx = new TH2F(Form("%s_el_iso_vs_nvtx",prefix.Data()),";nvtx;electron reliso, no PU cor",50,0,50,100,0.,2.);
-  h_el_iso_cor_vs_nvtx = new TH2F(Form("%s_el_iso_cor_vs_nvtx",prefix.Data()),";nvtx;electron reliso, with PU cor",50,0,50,100,0.,2.);
+  h_el_iso = new TH1F(Form("%s_el_iso",prefix.Data()),";electron reliso, no PU cor",200,0.,2.);
+  h_el_iso_cor = new TH1F(Form("%s_el_iso_cor",prefix.Data()),";electron reliso, with PU cor",200,0.,2.);
+  h_el_iso_vs_vtx0_purity_dz = new TH2F(Form("%s_el_iso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;electron reliso, no PU cor",100,0,1.,200,0.,2.);
+  h_el_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_el_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;electron reliso, with PU cor",100,0,1.,200,0.,2.);
+  h_el_iso_vs_nvtx = new TH2F(Form("%s_el_iso_vs_nvtx",prefix.Data()),";nvtx;electron reliso, no PU cor",50,0,50,200,0.,2.);
+  h_el_iso_cor_vs_nvtx = new TH2F(Form("%s_el_iso_cor_vs_nvtx",prefix.Data()),";nvtx;electron reliso, with PU cor",50,0,50,200,0.,2.);
 
   h_el_trkiso = new TH1F(Form("%s_el_trkiso",prefix.Data()),";el rel trkiso",1000,0.,2.);
   h_el_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_el_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;el rel trkiso",100,0,1.,1000,0.,2.);
   h_el_trkiso_vs_nvtx = new TH2F(Form("%s_el_trkiso_vs_nvtx",prefix.Data()),";nvtx;el rel trkiso",50,0,50,1000,0.,2.);
 
-  h_mu_iso = new TH1F(Form("%s_mu_iso",prefix.Data()),";mu reliso, no PU cor",100,0.,2.);
-  h_mu_iso_cor = new TH1F(Form("%s_mu_iso_cor",prefix.Data()),";mu reliso, with PU cor",100,0.,2.);
-  h_mu_iso_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, no PU cor",100,0,1.,100,0.,2.);
-  h_mu_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, with PU cor",100,0,1.,100,0.,2.);
-  h_mu_iso_vs_nvtx = new TH2F(Form("%s_mu_iso_vs_nvtx",prefix.Data()),";nvtx;mu reliso, no PU cor",50,0,50,100,0.,2.);
-  h_mu_iso_cor_vs_nvtx = new TH2F(Form("%s_mu_iso_cor_vs_nvtx",prefix.Data()),";nvtx;mu reliso, with PU cor",50,0,50,100,0.,2.);
+  h_mu_iso = new TH1F(Form("%s_mu_iso",prefix.Data()),";mu reliso, no PU cor",200,0.,2.);
+  h_mu_iso_cor = new TH1F(Form("%s_mu_iso_cor",prefix.Data()),";mu reliso, with PU cor",200,0.,2.);
+  h_mu_iso_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, no PU cor",100,0,1.,200,0.,2.);
+  h_mu_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, with PU cor",100,0,1.,200,0.,2.);
+  h_mu_iso_vs_nvtx = new TH2F(Form("%s_mu_iso_vs_nvtx",prefix.Data()),";nvtx;mu reliso, no PU cor",50,0,50,200,0.,2.);
+  h_mu_iso_cor_vs_nvtx = new TH2F(Form("%s_mu_iso_cor_vs_nvtx",prefix.Data()),";nvtx;mu reliso, with PU cor",50,0,50,200,0.,2.);
 
   h_mu_trkiso = new TH1F(Form("%s_mu_trkiso",prefix.Data()),";mu rel trkiso",1000,0.,2.);
   h_mu_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu rel trkiso",100,0,1.,1000,0.,2.);
@@ -940,5 +980,30 @@ float vertexStudyLooper::photonHollowTrkIso(const unsigned int iph) {
   }
 
   return iso_sum;
+}
+
+//--------------------------------------------------------------------
+
+float vertexStudyLooper::genSumPt2() {
+
+  float sumpt2 = 0.;
+
+  for (unsigned int igen = 0; igen < genps_p4().size(); ++igen) {
+    if (genps_status().at(igen) != 3) continue;
+
+    // skip lines up to t and tbar -- very ttbar specific?..
+    if( igen < 8 ) continue;
+
+    int id = abs(genps_id().at(igen));
+    // only sum up: (udscb quarks, gluons) * 2/3?, charged leptons
+    if ((id < 6) || (id == 21)) {
+      // scale by 2/3 to account for energy in neutrals?
+      sumpt2 += pow(genps_p4().at(igen).pt() * 2./3.,2);
+    } else if ((id == 11) || (id == 13) || (id == 15)) {
+      sumpt2 += pow(genps_p4().at(igen).pt(),2);
+    }
+  }
+
+  return sumpt2;
 }
 
