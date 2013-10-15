@@ -573,6 +573,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	// only good vertices
 	if (!isGoodVertex(ivtx)) continue;
 	if (ivtx == gen_match_vtx) continue;
+	h_vtx_nohs_sumpt2->Fill(vtxs_sumpt2_weight.at(ivtx));
 	h_vtx_nogen_nohs_sumpt2->Fill(vtxs_sumpt2_nogen_weight.at(ivtx));
       }
 
@@ -828,19 +829,20 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
 
   h_genvtx_z_nocut = new TH1F(Form("%s_genvtx_z_nocut",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
   h_genvtx_z = new TH1F(Form("%s_genvtx_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
-  h_genmatch_vtx_sumpt2 = new TH1F(Form("%s_genmatch_vtx_sumpt2",prefix.Data()),";#Sigma gen p_{T}^{2} [GeV^2]",2500,0.,5000.);
+  h_genmatch_vtx_sumpt2 = new TH1F(Form("%s_genmatch_vtx_sumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_genmatch_vtx_z = new TH1F(Form("%s_genmatch_vtx_z",prefix.Data()),";Z (gen match vtx) [cm]",50,-25.,25.);
   h_recovtx_z = new TH1F(Form("%s_recovtx_z",prefix.Data()),";Z (reco vtx) [cm]",50,-25.,25.);
 
   h_genvtx_nomatch_z = new TH1F(Form("%s_genvtx_nomatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
-  h_genvtx_nomatch_gensumpt2 = new TH1F(Form("%s_genvtx_nomatch_gensumpt2",prefix.Data()),";#Sigma gen p_{T}^{2} [GeV^2]",2500,0.,5000.);
+  h_genvtx_nomatch_gensumpt2 = new TH1F(Form("%s_genvtx_nomatch_gensumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_genvtx_othermatch_z = new TH1F(Form("%s_genvtx_othermatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
-  h_genvtx_othermatch_gensumpt2 = new TH1F(Form("%s_genvtx_othermatch_gensumpt2",prefix.Data()),";#Sigma gen p_{T}^{2} [GeV^2]",2500,0.,5000.);
-  h_genvtx_othermatch_sumpt2 = new TH1F(Form("%s_genvtx_othermatch_sumpt2",prefix.Data()),";#Sigma p_{T}^{2} [GeV^2]",2500,0.,5000.);
+  h_genvtx_othermatch_gensumpt2 = new TH1F(Form("%s_genvtx_othermatch_gensumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
+  h_genvtx_othermatch_sumpt2 = new TH1F(Form("%s_genvtx_othermatch_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
 
-  h_vtx_sumpt2 = new TH1F(Form("%s_vtx_sumpt2",prefix.Data()),";#Sigma p_{T}^{2} [GeV^2]",2500,0.,5000.);
-  h_vtx_nogen_sumpt2 = new TH1F(Form("%s_vtx_nogen_sumpt2",prefix.Data()),";#Sigma p_{T}^{2} [GeV^2]",2500,0.,5000.);
-  h_vtx_nogen_nohs_sumpt2 = new TH1F(Form("%s_vtx_nogen_nohs_sumpt2",prefix.Data()),";#Sigma p_{T}^{2} [GeV^2]",2500,0.,5000.);
+  h_vtx_sumpt2 = new TH1F(Form("%s_vtx_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
+  h_vtx_nohs_sumpt2 = new TH1F(Form("%s_vtx_nohs_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
+  h_vtx_nogen_sumpt2 = new TH1F(Form("%s_vtx_nogen_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
+  h_vtx_nogen_nohs_sumpt2 = new TH1F(Form("%s_vtx_nogen_nohs_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
 
   // lepton iso, vs purity
   h_el_iso = new TH1F(Form("%s_el_iso",prefix.Data()),";electron reliso, no PU cor",200,0.,2.);

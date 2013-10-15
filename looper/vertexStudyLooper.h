@@ -107,6 +107,7 @@ private:
   TH1F* h_genvtx_othermatch_sumpt2;
 
   TH1F* h_vtx_sumpt2;
+  TH1F* h_vtx_nohs_sumpt2;
   TH1F* h_vtx_nogen_sumpt2;
   TH1F* h_vtx_nogen_nohs_sumpt2;
 
