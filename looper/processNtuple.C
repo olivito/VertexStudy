@@ -77,6 +77,8 @@ void processNtuple( TString outfileid = "hgg_test", TString infile = "/hadoop/cm
   char* sample;
   //MC
   if (infile.Contains("TTJets_MassiveBinDECAY_TuneZ2star_8TeV"))     sample = Form("ttall_%s",  	 outfileid.Data());
+  else if (infile.Contains("TTbar_40PU")) sample = Form("ttall_40PU_%s",        outfileid.Data());
+  else if (infile.Contains("TTbar_60PU")) sample = Form("ttall_60PU_%s",        outfileid.Data());
   else if (infile.Contains("GluGluToHToGG_M-125")) sample = Form("hgg_m125_%s",  	 outfileid.Data());
   //otherwise
   else sample = Form("boiade_%s", outfileid.Data());

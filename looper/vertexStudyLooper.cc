@@ -600,6 +600,10 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       h_vtx0_hardscatter_pt_vs_sumpt_recalc->Fill(vtxs_sumpt_recalc_weight.at(vtx0),vtxs_sumpt_hardscatter_weight.at(vtx0));
       h_vtx0_sumpt_vs_sumpt_recalc->Fill(vtxs_sumpt_recalc_weight.at(vtx0),vtxs_sumpt().at(vtx0));
 
+      if (gen_match_vtx != vtx0) {
+	h_vtx0_pu_sumpt2->Fill(vtxs_sumpt2_weight.at(vtx0));
+      }
+
       //---------------------------------------------
       // loop over electrons
       //---------------------------------------------
@@ -626,6 +630,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	float iso = electronPFiso(iel);
 	float iso_cor = electronPFiso(iel,true);
 	float trkiso = els_iso03_pf2012ext_ch().at(iel)/els_p4().at(iel).pt();
+	float trkiso_abs = els_iso03_pf2012ext_ch().at(iel);
 
 	h_el_iso->Fill(iso);
 	h_el_iso_cor->Fill(iso_cor);
@@ -637,6 +642,9 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_el_trkiso->Fill(trkiso);
 	h_el_trkiso_vs_vtx0_purity_dz->Fill(purity_dz,trkiso);
 	h_el_trkiso_vs_nvtx->Fill(nvtx,trkiso);
+	h_el_trkiso_abs->Fill(trkiso_abs);
+	h_el_trkiso_abs_vs_vtx0_purity_dz->Fill(purity_dz,trkiso_abs);
+	h_el_trkiso_abs_vs_nvtx->Fill(nvtx,trkiso_abs);
       }
 
       //---------------------------------------------
@@ -665,6 +673,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	float iso = muonPFiso(imu);
 	float iso_cor = muonPFiso(imu,true);
 	float trkiso = mus_isoR03_pf_ChargedHadronPt().at(imu)/mus_p4().at(imu).pt();
+	float trkiso_abs = mus_isoR03_pf_ChargedHadronPt().at(imu);
 
 	h_mu_iso->Fill(iso);
 	h_mu_iso_cor->Fill(iso_cor);
@@ -676,6 +685,9 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_mu_trkiso->Fill(trkiso);
 	h_mu_trkiso_vs_vtx0_purity_dz->Fill(purity_dz,trkiso);
 	h_mu_trkiso_vs_nvtx->Fill(nvtx,trkiso);
+	h_mu_trkiso_abs->Fill(trkiso_abs);
+	h_mu_trkiso_abs_vs_vtx0_purity_dz->Fill(purity_dz,trkiso_abs);
+	h_mu_trkiso_abs_vs_nvtx->Fill(nvtx,trkiso_abs);
       }
 
       //---------------------------------------------
@@ -791,26 +803,28 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   // rootdir->cd();
   if (outFile) outFile->cd();
 
+  const int max_nvtx = 60;
+
   h_vtx0_hardscatter_pt_vs_sumpt = new TH2F(Form("%s_vtx0_hardscatter_pt_vs_sumpt",prefix.Data()),";vtx0 #Sigma p_{T};vtx0 #Sigma p_{T} from hard scatter",100,0,1000.,100,0,1000.);
   h_vtx0_hardscatter_pt_vs_sumpt_recalc = new TH2F(Form("%s_vtx0_hardscatter_pt_vs_sumpt_recalc",prefix.Data()),";vtx0 #Sigma p_{T};vtx0 #Sigma p_{T} from hard scatter",100,0,1000.,100,0,1000.);
   h_vtx0_sumpt_vs_sumpt_recalc = new TH2F(Form("%s_vtx0_sumpt_vs_sumpt_recalc",prefix.Data()),";vtx0 #Sigma p_{T}, recalc;vtx0 #Sigma p_{T}",100,0,1000.,100,0,1000.);
   h_vtx_best_purity_dz = new TH1F(Form("%s_vtx_best_purity_dz",prefix.Data()),";Frac of vtx0 p_{T} from hard scatter",100,0.,1.);
   h_vtx_best_purity_weight = new TH1F(Form("%s_vtx_best_purity_weight",prefix.Data()),";Frac of vtx0 p_{T} from hard scatter",100,0.,1.);
-  h_vtx_best_purity_dz_vs_nvtx = new TH2F(Form("%s_vtx_best_purity_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of vtx0 p_{T} from hard scatter",50,0,50,100,0.,1.);
-  h_vtx_best_purity_weight_vs_nvtx = new TH2F(Form("%s_vtx_best_purity_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of vtx0 p_{T} from hard scatter",50,0,50,100,0.,1.);
+  h_vtx_best_purity_dz_vs_nvtx = new TH2F(Form("%s_vtx_best_purity_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of vtx0 p_{T} from hard scatter",max_nvtx,0,max_nvtx,100,0.,1.);
+  h_vtx_best_purity_weight_vs_nvtx = new TH2F(Form("%s_vtx_best_purity_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of vtx0 p_{T} from hard scatter",max_nvtx,0,max_nvtx,100,0.,1.);
   h_vtx0_purity_dz = new TH1F(Form("%s_vtx0_purity_dz",prefix.Data()),";vtx0 hard scatter purity",100,0.,1.);
   h_vtx0_purity_weight = new TH1F(Form("%s_vtx0_purity_weight",prefix.Data()),";Frac of vtx0 p_{T} from hard scatter",100,0.,1.);
-  h_vtx0_purity_dz_vs_nvtx = new TH2F(Form("%s_vtx0_purity_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of vtx0 p_{T} from hard scatter",50,0,50,100,0.,1.);
-  h_vtx0_purity_weight_vs_nvtx = new TH2F(Form("%s_vtx0_purity_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of vtx0 p_{T} from hard scatter",50,0,50,100,0.,1.);
+  h_vtx0_purity_dz_vs_nvtx = new TH2F(Form("%s_vtx0_purity_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of vtx0 p_{T} from hard scatter",max_nvtx,0,max_nvtx,100,0.,1.);
+  h_vtx0_purity_weight_vs_nvtx = new TH2F(Form("%s_vtx0_purity_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of vtx0 p_{T} from hard scatter",max_nvtx,0,max_nvtx,100,0.,1.);
   // fraction of total hard scatter pt associated to PV0
   h_vtx_best_eff_dz = new TH1F(Form("%s_vtx_best_eff_dz",prefix.Data()),";Frac of track hard scatter p_{T} assoc to vtx0",100,0.,1.);
   h_vtx_best_eff_weight = new TH1F(Form("%s_vtx_best_eff_weight",prefix.Data()),";Frac of track hard scatter p_{T} assoc to vtx0",100,0.,1.);
-  h_vtx_best_eff_dz_vs_nvtx = new TH2F(Form("%s_vtx_best_eff_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",50,0,50,100,0.,1.);
-  h_vtx_best_eff_weight_vs_nvtx = new TH2F(Form("%s_vtx_best_eff_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",50,0,50,100,0.,1.);
+  h_vtx_best_eff_dz_vs_nvtx = new TH2F(Form("%s_vtx_best_eff_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",max_nvtx,0,max_nvtx,100,0.,1.);
+  h_vtx_best_eff_weight_vs_nvtx = new TH2F(Form("%s_vtx_best_eff_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",max_nvtx,0,max_nvtx,100,0.,1.);
   h_vtx0_eff_dz = new TH1F(Form("%s_vtx0_eff_dz",prefix.Data()),";Frac of track hard scatter p_{T} assoc to vtx0",100,0.,1.);
   h_vtx0_eff_weight = new TH1F(Form("%s_vtx0_eff_weight",prefix.Data()),";Frac of track hard scatter p_{T} assoc to vtx0",100,0.,1.);
-  h_vtx0_eff_dz_vs_nvtx = new TH2F(Form("%s_vtx0_eff_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",50,0,50,100,0.,1.);
-  h_vtx0_eff_weight_vs_nvtx = new TH2F(Form("%s_vtx0_eff_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",50,0,50,100,0.,1.);
+  h_vtx0_eff_dz_vs_nvtx = new TH2F(Form("%s_vtx0_eff_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",max_nvtx,0,max_nvtx,100,0.,1.);
+  h_vtx0_eff_weight_vs_nvtx = new TH2F(Form("%s_vtx0_eff_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",max_nvtx,0,max_nvtx,100,0.,1.);
   h_dz_trk_vtx = new TH1F(Form("%s_dz_trk_vtx",prefix.Data()),";dz(trk, best vtx) [mm]",1000,-10.,10.);
   h_dz_trk_vtx0_weight = new TH1F(Form("%s_dz_trk_vtx0_weight",prefix.Data()),";dz(trk, vtx0) [mm]",1000,-10.,10.);
   h_trk_bestdzvtx = new TH1F(Form("%s_trk_bestdzvtx",prefix.Data()),";best vtx based on dz",100,0,100);
@@ -823,9 +837,9 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_mc_idx_duplicates_pt = new TH1F(Form("%s_mc_idx_duplicates_pt",prefix.Data()),";p_{T} for tracks with duplicate matches",500,0.,100.);
   h_mc_idx_duplicates_nhits = new TH1F(Form("%s_mc_idx_duplicates_nhits",prefix.Data()),";N(hits) for tracks with duplicate matches",20,0,20);
   h_match_dr = new TH1F(Form("%s_match_dr",prefix.Data()),";dR(reco,gen)",40,0.,0.2);
-  h_nvtx = new TH1F(Form("%s_nvtx",prefix.Data()),";N(vtx)",50,0,50);
+  h_nvtx = new TH1F(Form("%s_nvtx",prefix.Data()),";N(vtx)",max_nvtx,0,max_nvtx);
   h_gen_match_vtx = new TH1F(Form("%s_gen_match_vtx",prefix.Data()),";reco index of true PV",51,-1,50);
-  h_gen_match_vtx_vs_nvtx = new TH2F(Form("%s_gen_match_vtx_vs_nvtx",prefix.Data()),";N(vtx);reco index of true PV",50,0,50,51,-1,50);
+  h_gen_match_vtx_vs_nvtx = new TH2F(Form("%s_gen_match_vtx_vs_nvtx",prefix.Data()),";N(vtx);reco index of true PV",max_nvtx,0,max_nvtx,51,-1,50);
 
   h_genvtx_z_nocut = new TH1F(Form("%s_genvtx_z_nocut",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
   h_genvtx_z = new TH1F(Form("%s_genvtx_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
@@ -843,37 +857,44 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_vtx_nohs_sumpt2 = new TH1F(Form("%s_vtx_nohs_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_vtx_nogen_sumpt2 = new TH1F(Form("%s_vtx_nogen_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_vtx_nogen_nohs_sumpt2 = new TH1F(Form("%s_vtx_nogen_nohs_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
+  h_vtx0_pu_sumpt2 = new TH1F(Form("%s_vtx0_pu_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
 
   // lepton iso, vs purity
   h_el_iso = new TH1F(Form("%s_el_iso",prefix.Data()),";electron reliso, no PU cor",200,0.,2.);
   h_el_iso_cor = new TH1F(Form("%s_el_iso_cor",prefix.Data()),";electron reliso, with PU cor",200,0.,2.);
   h_el_iso_vs_vtx0_purity_dz = new TH2F(Form("%s_el_iso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;electron reliso, no PU cor",100,0,1.,200,0.,2.);
   h_el_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_el_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;electron reliso, with PU cor",100,0,1.,200,0.,2.);
-  h_el_iso_vs_nvtx = new TH2F(Form("%s_el_iso_vs_nvtx",prefix.Data()),";nvtx;electron reliso, no PU cor",50,0,50,200,0.,2.);
-  h_el_iso_cor_vs_nvtx = new TH2F(Form("%s_el_iso_cor_vs_nvtx",prefix.Data()),";nvtx;electron reliso, with PU cor",50,0,50,200,0.,2.);
+  h_el_iso_vs_nvtx = new TH2F(Form("%s_el_iso_vs_nvtx",prefix.Data()),";nvtx;electron reliso, no PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
+  h_el_iso_cor_vs_nvtx = new TH2F(Form("%s_el_iso_cor_vs_nvtx",prefix.Data()),";nvtx;electron reliso, with PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
 
   h_el_trkiso = new TH1F(Form("%s_el_trkiso",prefix.Data()),";el rel trkiso",1000,0.,2.);
   h_el_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_el_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;el rel trkiso",100,0,1.,1000,0.,2.);
-  h_el_trkiso_vs_nvtx = new TH2F(Form("%s_el_trkiso_vs_nvtx",prefix.Data()),";nvtx;el rel trkiso",50,0,50,1000,0.,2.);
+  h_el_trkiso_vs_nvtx = new TH2F(Form("%s_el_trkiso_vs_nvtx",prefix.Data()),";nvtx;el rel trkiso",max_nvtx,0,max_nvtx,1000,0.,2.);
+  h_el_trkiso_abs = new TH1F(Form("%s_el_trkiso_abs",prefix.Data()),";el trkiso",1000,0.,10.);
+  h_el_trkiso_abs_vs_vtx0_purity_dz = new TH2F(Form("%s_el_trkiso_abs_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;el trkiso",100,0,1.,1000,0.,10.);
+  h_el_trkiso_abs_vs_nvtx = new TH2F(Form("%s_el_trkiso_abs_vs_nvtx",prefix.Data()),";nvtx;el trkiso",max_nvtx,0,max_nvtx,1000,0.,10.);
 
   h_mu_iso = new TH1F(Form("%s_mu_iso",prefix.Data()),";mu reliso, no PU cor",200,0.,2.);
   h_mu_iso_cor = new TH1F(Form("%s_mu_iso_cor",prefix.Data()),";mu reliso, with PU cor",200,0.,2.);
   h_mu_iso_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, no PU cor",100,0,1.,200,0.,2.);
   h_mu_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, with PU cor",100,0,1.,200,0.,2.);
-  h_mu_iso_vs_nvtx = new TH2F(Form("%s_mu_iso_vs_nvtx",prefix.Data()),";nvtx;mu reliso, no PU cor",50,0,50,200,0.,2.);
-  h_mu_iso_cor_vs_nvtx = new TH2F(Form("%s_mu_iso_cor_vs_nvtx",prefix.Data()),";nvtx;mu reliso, with PU cor",50,0,50,200,0.,2.);
+  h_mu_iso_vs_nvtx = new TH2F(Form("%s_mu_iso_vs_nvtx",prefix.Data()),";nvtx;mu reliso, no PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
+  h_mu_iso_cor_vs_nvtx = new TH2F(Form("%s_mu_iso_cor_vs_nvtx",prefix.Data()),";nvtx;mu reliso, with PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
 
   h_mu_trkiso = new TH1F(Form("%s_mu_trkiso",prefix.Data()),";mu rel trkiso",1000,0.,2.);
   h_mu_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu rel trkiso",100,0,1.,1000,0.,2.);
-  h_mu_trkiso_vs_nvtx = new TH2F(Form("%s_mu_trkiso_vs_nvtx",prefix.Data()),";nvtx;mu rel trkiso",50,0,50,1000,0.,2.);
+  h_mu_trkiso_vs_nvtx = new TH2F(Form("%s_mu_trkiso_vs_nvtx",prefix.Data()),";nvtx;mu rel trkiso",max_nvtx,0,max_nvtx,1000,0.,2.);
+  h_mu_trkiso_abs = new TH1F(Form("%s_mu_trkiso_abs",prefix.Data()),";mu trkiso",1000,0.,10.);
+  h_mu_trkiso_abs_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_trkiso_abs_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu trkiso",100,0,1.,1000,0.,10.);
+  h_mu_trkiso_abs_vs_nvtx = new TH2F(Form("%s_mu_trkiso_abs_vs_nvtx",prefix.Data()),";nvtx;mu trkiso",max_nvtx,0,max_nvtx,1000,0.,10.);
 
   h_ph_trkiso = new TH1F(Form("%s_ph_trkiso",prefix.Data()),";ph trkiso",1000,0.,2.);
   h_ph_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_ph_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;ph trkiso",100,0,1.,1000,0.,2.);
-  h_ph_trkiso_vs_nvtx = new TH2F(Form("%s_ph_trkiso_vs_nvtx",prefix.Data()),";nvtx;ph trkiso",50,0,50,1000,0.,2.);
+  h_ph_trkiso_vs_nvtx = new TH2F(Form("%s_ph_trkiso_vs_nvtx",prefix.Data()),";nvtx;ph trkiso",max_nvtx,0,max_nvtx,1000,0.,2.);
 
   h_pfjet_beta = new TH1F(Form("%s_pfjet_beta",prefix.Data()),";pfjet beta",100,0.,1.);
   h_pfjet_beta_vs_vtx0_purity_dz = new TH2F(Form("%s_pfjet_beta_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;pfjet beta",100,0,1.,100,0.,1.);
-  h_pfjet_beta_vs_nvtx = new TH2F(Form("%s_pfjet_beta_vs_nvtx",prefix.Data()),";nvtx;pfjet beta",50,0,50,100,0.,1.);
+  h_pfjet_beta_vs_nvtx = new TH2F(Form("%s_pfjet_beta_vs_nvtx",prefix.Data()),";nvtx;pfjet beta",max_nvtx,0,max_nvtx,100,0.,1.);
 
   h_nomatch_trk_pt = new TH1F(Form("%s_nomatch_trk_pt",prefix.Data()),";p_{T} (tracks, not matched) [GeV]",500,0.,100.);
   h_nomatch_trk_pt_low = new TH1F(Form("%s_nomatch_trk_pt_low",prefix.Data()),";p_{T} (tracks, not matched) [GeV]",100,0.,1.);
