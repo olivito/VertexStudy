@@ -352,12 +352,24 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       }
    
       int nleps = 0;
+      int nleps_etaacc = 0;
+      int npartons = 0;
+      int npartons_etaacc = 0;
       // loop over genps, count e and mu with pt > 20 gev
       for (unsigned int igen = 0; igen < genps_status().size(); ++igen) {
 	if (genps_status().at(igen) != 3) continue;
 	if (genps_p4().at(igen).pt() < 20.) continue;
+	bool passeta = false;
+	if (fabs(genps_p4().at(igen).eta()) < 2.4) passeta = true;
 	int id = abs(genps_id().at(igen));
-	if (id == 11 || id == 13) ++nleps;
+	if (id == 11 || id == 13) {
+	  ++nleps;
+	  if (passeta) ++nleps_etaacc;
+	} // leptons
+	if ((id < 6) || (id == 21)) {
+	  ++npartons;
+	  if (passeta) ++npartons_etaacc;
+	} // partons
       }
 
       if (requireLeps && !nleps) continue;
@@ -529,8 +541,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	//  |dz| < 1mm from true hard scatter vtx
 	//  at least 10% of hard scatter pt
 	float dz = fabs(vtxs_position().at(ivtx).z() - genvtx_z) > dz_gen_vtx_match;
-	if (dz < mindz) {
-	  mindz = dz;
+	if (fabs(dz) < mindz) {
+	  mindz = fabs(dz);
 	  mindz_idx = ivtx;
 	}
 	float purity_dz = vtxs_sumpt_hardscatter_dz.at(ivtx)/vtxs_sumpt_recalc_dz.at(ivtx);
@@ -540,8 +552,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 
 	if (eff_dz < fracpt_gen_vtx_match) continue;
 
-	if (dz < mindz_eff10) {
-	  mindz_eff10 = dz;
+	if (fabs(dz) < mindz_eff10) {
+	  mindz_eff10 = fabs(dz);
 	  mindz_eff10_idx = ivtx;
 	}
 
@@ -579,7 +591,16 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       // no matched vertex
       if (gen_match_vtx == -1) {
 	h_genvtx_nomatch_z->Fill(genvtx_z);
-	if (mindz_idx > -1) h_genvtx_nomatch_dz->Fill(genvtx_z - vtxs_position().at(mindz_idx).z());
+	if (mindz_idx > -1) {
+	  h_genvtx_nomatch_dz->Fill(genvtx_z - vtxs_position().at(mindz_idx).z());
+	  if (mindz < 0.2) {
+	    h_genvtx_nomatch_smalldz_eff->Fill(vtxs_sumpt_hardscatter_dz.at(mindz_idx)/sum_hardscatter_pt);
+	  } else {
+	    // large dz: check how many leptons and partons were within pt/eta acceptance
+	    h_genvtx_nomatch_largedz_nleps->Fill(nleps_etaacc);
+	    h_genvtx_nomatch_largedz_npartons->Fill(npartons_etaacc);
+	  }
+	} // if mindz_idz > -1
 	if (mindz_eff10_idx > -1) h_genvtx_nomatch_dz_eff10->Fill(genvtx_z - vtxs_position().at(mindz_eff10_idx).z());
 	h_genvtx_nomatch_gensumpt2->Fill(genvtx_sumpt2);
       }
@@ -588,7 +609,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       for (unsigned int ivtx = 0; ivtx < vtxs_sumpt().size(); ++ivtx) {
 	// only good vertices
 	if (!isGoodVertex(ivtx)) continue;
-	if (ivtx == gen_match_vtx) continue;
+	if (int(ivtx) == gen_match_vtx) continue;
 	h_vtx_nohs_sumpt2->Fill(vtxs_sumpt2_weight.at(ivtx));
 	h_vtx_nogen_nohs_sumpt2->Fill(vtxs_sumpt2_nogen_weight.at(ivtx));
       }
@@ -870,6 +891,9 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_genvtx_nomatch_gensumpt2 = new TH1F(Form("%s_genvtx_nomatch_gensumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_genvtx_nomatch_dz = new TH1F(Form("%s_genvtx_nomatch_dz",prefix.Data()),";dz (gen vtx, closest reco) [cm]",1000,-10.,10.);
   h_genvtx_nomatch_dz_eff10 = new TH1F(Form("%s_genvtx_nomatch_dz_eff10",prefix.Data()),";dz (gen vtx, closest reco) [cm]",1000,-10.,10.);
+  h_genvtx_nomatch_smalldz_eff = new TH1F(Form("%s_genvtx_nomatch_smalldz_eff",prefix.Data()),";Frac of track hard scatter p_{T} assoc to vtx",100,0.,1.);
+  h_genvtx_nomatch_largedz_nleps = new TH1F(Form("%s_genvtx_nomatch_largedz_nleps",prefix.Data()),";N(gen leps)",5,0.,5.);
+  h_genvtx_nomatch_largedz_npartons = new TH1F(Form("%s_genvtx_nomatch_largedz_npartons",prefix.Data()),";N(gen partons)",10,0.,10.);
   h_genvtx_othermatch_z = new TH1F(Form("%s_genvtx_othermatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
   h_genvtx_othermatch_dz = new TH1F(Form("%s_genvtx_othermatch_dz",prefix.Data()),";dz (gen vtx, highest #Sigma p_{T}^{2} vtx) [cm]",1000,-10.,10.);
   h_genvtx_othermatch_gensumpt2 = new TH1F(Form("%s_genvtx_othermatch_gensumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
