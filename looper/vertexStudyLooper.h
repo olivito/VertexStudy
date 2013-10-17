@@ -102,7 +102,10 @@ private:
 
   TH1F* h_genvtx_nomatch_z;
   TH1F* h_genvtx_nomatch_gensumpt2;
+  TH1F* h_genvtx_nomatch_dz;
+  TH1F* h_genvtx_nomatch_dz_eff10;
   TH1F* h_genvtx_othermatch_z;
+  TH1F* h_genvtx_othermatch_dz;
   TH1F* h_genvtx_othermatch_gensumpt2;
   TH1F* h_genvtx_othermatch_sumpt2;
 

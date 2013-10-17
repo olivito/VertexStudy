@@ -510,6 +510,10 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 
       int nvtx = 0;
       int gen_match_vtx = -1;
+      float mindz = 99.;
+      int mindz_idx = -1;
+      float mindz_eff10 = 99.;
+      int mindz_eff10_idx = -1;
       for (unsigned int ivtx = 0; ivtx < vtxs_sumpt().size(); ++ivtx) {
 	// count good vertices
 	if (!isGoodVertex(ivtx)) continue;
@@ -524,15 +528,25 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	// require: 
 	//  |dz| < 1mm from true hard scatter vtx
 	//  at least 10% of hard scatter pt
-	if (fabs(vtxs_position().at(ivtx).z() - genvtx_z) > dz_gen_vtx_match ) continue;
-	//	if (vtxs_sumpt_hardscatter_dz.at(ivtx)/vtxs_sumpt_recalc_dz.at(ivtx) < fracpt_gen_vtx_match ) continue;
-
+	float dz = fabs(vtxs_position().at(ivtx).z() - genvtx_z) > dz_gen_vtx_match;
+	if (dz < mindz) {
+	  mindz = dz;
+	  mindz_idx = ivtx;
+	}
 	float purity_dz = vtxs_sumpt_hardscatter_dz.at(ivtx)/vtxs_sumpt_recalc_dz.at(ivtx);
 	float purity_weight = vtxs_sumpt_hardscatter_weight.at(ivtx)/vtxs_sumpt_recalc_weight.at(ivtx);
 	float eff_dz = vtxs_sumpt_hardscatter_dz.at(ivtx)/sum_hardscatter_pt;
 	float eff_weight = vtxs_sumpt_hardscatter_weight.at(ivtx)/sum_hardscatter_pt;
 
 	if (eff_dz < fracpt_gen_vtx_match) continue;
+
+	if (dz < mindz_eff10) {
+	  mindz_eff10 = dz;
+	  mindz_eff10_idx = ivtx;
+	}
+
+	if (fabs(vtxs_position().at(ivtx).z() - genvtx_z) > dz_gen_vtx_match ) continue;
+	//	if (vtxs_sumpt_hardscatter_dz.at(ivtx)/vtxs_sumpt_recalc_dz.at(ivtx) < fracpt_gen_vtx_match ) continue;
 
 	h_vtx_best_purity_dz->Fill(purity_dz);
 	h_vtx_best_purity_dz_vs_nvtx->Fill(nvtx,purity_dz);
@@ -565,6 +579,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       // no matched vertex
       if (gen_match_vtx == -1) {
 	h_genvtx_nomatch_z->Fill(genvtx_z);
+	if (mindz_idx > -1) h_genvtx_nomatch_dz->Fill(genvtx_z - vtxs_position().at(mindz_idx).z());
+	if (mindz_eff10_idx > -1) h_genvtx_nomatch_dz_eff10->Fill(genvtx_z - vtxs_position().at(mindz_eff10_idx).z());
 	h_genvtx_nomatch_gensumpt2->Fill(genvtx_sumpt2);
       }
 
@@ -602,6 +618,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 
       if (gen_match_vtx != vtx0) {
 	h_vtx0_pu_sumpt2->Fill(vtxs_sumpt2_weight.at(vtx0));
+	h_genvtx_othermatch_dz->Fill(vtxs_position().at(gen_match_vtx).z() - vtxs_position().at(vtx0).z());
       }
 
       //---------------------------------------------
@@ -825,13 +842,13 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_vtx0_eff_weight = new TH1F(Form("%s_vtx0_eff_weight",prefix.Data()),";Frac of track hard scatter p_{T} assoc to vtx0",100,0.,1.);
   h_vtx0_eff_dz_vs_nvtx = new TH2F(Form("%s_vtx0_eff_dz_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",max_nvtx,0,max_nvtx,100,0.,1.);
   h_vtx0_eff_weight_vs_nvtx = new TH2F(Form("%s_vtx0_eff_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",max_nvtx,0,max_nvtx,100,0.,1.);
-  h_dz_trk_vtx = new TH1F(Form("%s_dz_trk_vtx",prefix.Data()),";dz(trk, best vtx) [mm]",1000,-10.,10.);
-  h_dz_trk_vtx0_weight = new TH1F(Form("%s_dz_trk_vtx0_weight",prefix.Data()),";dz(trk, vtx0) [mm]",1000,-10.,10.);
+  h_dz_trk_vtx = new TH1F(Form("%s_dz_trk_vtx",prefix.Data()),";dz(trk, best vtx) [cm]",1000,-10.,10.);
+  h_dz_trk_vtx0_weight = new TH1F(Form("%s_dz_trk_vtx0_weight",prefix.Data()),";dz(trk, vtx0) [cm]",1000,-10.,10.);
   h_trk_bestdzvtx = new TH1F(Form("%s_trk_bestdzvtx",prefix.Data()),";best vtx based on dz",100,0,100);
   h_trk_bestdzvtx_vs_weightvtx = new TH2F(Form("%s_trk_bestdzvtx_vs_weightvtx",prefix.Data()),";best weighted vtx;best vtx based on dz",100,0,100,100,0,100);
-  h_trk_dz_vtxs = new TH1F(Form("%s_trk_dz_vtxs",prefix.Data()),";dz(match vtx, closest vertex) [mm]",1000,-10.,10.);
-  h_hs_trk_dz_vtxs = new TH1F(Form("%s_hs_trk_dz_vtxs",prefix.Data()),";dz(match vtx,vtx0) [mm]",1000,-10.,10.);
-  h_hs_trk_dz_vtx0 = new TH1F(Form("%s_hs_trk_dz_vtx0",prefix.Data()),";dz(trk,vtx0) [mm]",1000,-10.,10.);
+  h_trk_dz_vtxs = new TH1F(Form("%s_trk_dz_vtxs",prefix.Data()),";dz(match vtx, closest vertex) [cm]",1000,-10.,10.);
+  h_hs_trk_dz_vtxs = new TH1F(Form("%s_hs_trk_dz_vtxs",prefix.Data()),";dz(match vtx,vtx0) [cm]",1000,-10.,10.);
+  h_hs_trk_dz_vtx0 = new TH1F(Form("%s_hs_trk_dz_vtx0",prefix.Data()),";dz(trk,vtx0) [cm]",1000,-10.,10.);
   h_mc_idx_duplicates = new TH1F(Form("%s_mc_idx_duplicates",prefix.Data()),";# tracks with duplicate MC matches",500,0,500);
   h_mc_idx_duplicates_dr = new TH1F(Form("%s_mc_idx_duplicates_dr",prefix.Data()),";dR(reco,gen) for tracks with duplicate matches",40,0.,0.2);
   h_mc_idx_duplicates_pt = new TH1F(Form("%s_mc_idx_duplicates_pt",prefix.Data()),";p_{T} for tracks with duplicate matches",500,0.,100.);
@@ -849,7 +866,10 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
 
   h_genvtx_nomatch_z = new TH1F(Form("%s_genvtx_nomatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
   h_genvtx_nomatch_gensumpt2 = new TH1F(Form("%s_genvtx_nomatch_gensumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
+  h_genvtx_nomatch_dz = new TH1F(Form("%s_genvtx_nomatch_dz",prefix.Data()),";dz (gen vtx, closest reco) [cm]",1000,-10.,10.);
+  h_genvtx_nomatch_dz_eff10 = new TH1F(Form("%s_genvtx_nomatch_dz_eff10",prefix.Data()),";dz (gen vtx, closest reco) [cm]",1000,-10.,10.);
   h_genvtx_othermatch_z = new TH1F(Form("%s_genvtx_othermatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
+  h_genvtx_othermatch_dz = new TH1F(Form("%s_genvtx_othermatch_dz",prefix.Data()),";dz (gen vtx, highest #Sigma p_{T}^{2} vtx) [cm]",1000,-10.,10.);
   h_genvtx_othermatch_gensumpt2 = new TH1F(Form("%s_genvtx_othermatch_gensumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_genvtx_othermatch_sumpt2 = new TH1F(Form("%s_genvtx_othermatch_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
 
