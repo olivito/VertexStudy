@@ -618,7 +618,9 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 
       if (gen_match_vtx != vtx0) {
 	h_vtx0_pu_sumpt2->Fill(vtxs_sumpt2_weight.at(vtx0));
-	h_genvtx_othermatch_dz->Fill(vtxs_position().at(gen_match_vtx).z() - vtxs_position().at(vtx0).z());
+	if (gen_match_vtx > -1) {
+	  h_genvtx_othermatch_dz->Fill(vtxs_position().at(gen_match_vtx).z() - vtxs_position().at(vtx0).z());
+	}
       }
 
       //---------------------------------------------
