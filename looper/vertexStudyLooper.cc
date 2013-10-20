@@ -409,7 +409,6 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	int bestdzvtx = associateTrackToVertex(itrk);
 	//int bestdzvtx = associateTrackToVertexSimple(itrk);
 	int weightvtx = trks_pvidx0().at(itrk);
-	trk_bestdzvtx.at(itrk) = bestdzvtx;
 	float dz = trks_dz_pv(itrk, bestdzvtx).first;
 	//float dz = cms2.trks_z0().at(itrk) - vtxs_position().at(bestdzvtx).z();
 	h_dz_trk_vtx->Fill(dz);
@@ -419,8 +418,13 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	  if ((weightvtx > -9000) && (bestdzvtx != weightvtx)) {
 	    h_trk_dz_vtxs->Fill(vtxs_position().at(weightvtx).z() - vtxs_position().at(bestdzvtx).z());
 	  }
+	  vtxs_sumpt_recalc_dz.at(bestdzvtx) += trks_trk_p4().at(itrk).pt();
+	} else {
+	  // closest vertex fails dzcut: set bestdzvtx to -1 for invalid
+	  bestdzvtx = -1;
 	}
-	vtxs_sumpt_recalc_dz.at(bestdzvtx) += trks_trk_p4().at(itrk).pt();
+	trk_bestdzvtx.at(itrk) = bestdzvtx;
+
 	if (weightvtx > -9000) {
 	  vtxs_sumpt_recalc_weight.at(weightvtx) += trks_trk_p4().at(itrk).pt();
 	  vtxs_sumpt2_weight.at(weightvtx) += pow(trks_trk_p4().at(itrk).pt(),2);
@@ -469,7 +473,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	  int weightvtx = trks_pvidx0().at(itrk);
 	  int bestdzvtx = trk_bestdzvtx.at(itrk);
 
-	  vtxs_sumpt_hardscatter_dz.at(bestdzvtx) += trks_trk_p4().at(itrk).pt();
+	  if (bestdzvtx > -1) vtxs_sumpt_hardscatter_dz.at(bestdzvtx) += trks_trk_p4().at(itrk).pt();
 	  if (weightvtx > -9000) {
 	    vtxs_sumpt_hardscatter_weight.at(weightvtx) += trks_trk_p4().at(itrk).pt();
 	    if (weightvtx != 0) {
@@ -508,7 +512,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	  int weightvtx = trks_pvidx0().at(ibestmatch);
 	  int bestdzvtx = trk_bestdzvtx.at(ibestmatch);
 
-	  vtxs_sumpt_hardscatter_dz.at(bestdzvtx) += trks_trk_p4().at(ibestmatch).pt();
+	  if (bestdzvtx > -1) vtxs_sumpt_hardscatter_dz.at(bestdzvtx) += trks_trk_p4().at(ibestmatch).pt();
 	  if (weightvtx > -9000) {
 	    vtxs_sumpt_hardscatter_weight.at(weightvtx) += trks_trk_p4().at(ibestmatch).pt();
 	    if (weightvtx != 0) {
@@ -548,7 +552,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	// require: 
 	//  |dz| < 1mm from true hard scatter vtx
 	//  at least 10% of hard scatter pt
-	float dz = fabs(vtxs_position().at(ivtx).z() - genvtx_z) > dz_gen_vtx_match;
+	float dz = vtxs_position().at(ivtx).z() - genvtx_z;
 	if (fabs(dz) < mindz) {
 	  mindz = fabs(dz);
 	  mindz_idx = ivtx;
@@ -565,7 +569,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	  mindz_eff10_idx = ivtx;
 	}
 
-	if (fabs(vtxs_position().at(ivtx).z() - genvtx_z) > dz_gen_vtx_match ) continue;
+	if (fabs(dz) > dz_gen_vtx_match ) continue;
 	//	if (vtxs_sumpt_hardscatter_dz.at(ivtx)/vtxs_sumpt_recalc_dz.at(ivtx) < fracpt_gen_vtx_match ) continue;
 
 	h_vtx_best_purity_dz->Fill(purity_dz);
@@ -885,8 +889,8 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_vtx0_eff_weight_vs_nvtx = new TH2F(Form("%s_vtx0_eff_weight_vs_nvtx",prefix.Data()),";N(vtx);Frac of track hard scatter p_{T} assoc to vtx0",max_nvtx,0,max_nvtx,100,0.,1.);
   h_dz_trk_vtx = new TH1F(Form("%s_dz_trk_vtx",prefix.Data()),";dz(trk, best vtx) [cm]",1000,-10.,10.);
   h_dz_trk_vtx0_weight = new TH1F(Form("%s_dz_trk_vtx0_weight",prefix.Data()),";dz(trk, vtx0) [cm]",1000,-10.,10.);
-  h_trk_bestdzvtx = new TH1F(Form("%s_trk_bestdzvtx",prefix.Data()),";best vtx based on dz",100,0,100);
-  h_trk_bestdzvtx_vs_weightvtx = new TH2F(Form("%s_trk_bestdzvtx_vs_weightvtx",prefix.Data()),";best weighted vtx;best vtx based on dz",100,0,100,100,0,100);
+  h_trk_bestdzvtx = new TH1F(Form("%s_trk_bestdzvtx",prefix.Data()),";best vtx based on dz",101,-1,100);
+  h_trk_bestdzvtx_vs_weightvtx = new TH2F(Form("%s_trk_bestdzvtx_vs_weightvtx",prefix.Data()),";best weighted vtx;best vtx based on dz",100,0,100,101,-1,100);
   h_trk_dz_vtxs = new TH1F(Form("%s_trk_dz_vtxs",prefix.Data()),";dz(match vtx, closest vertex) [cm]",1000,-10.,10.);
   h_hs_trk_dz_vtxs = new TH1F(Form("%s_hs_trk_dz_vtxs",prefix.Data()),";dz(match vtx,vtx0) [cm]",1000,-10.,10.);
   h_hs_trk_dz_vtx0 = new TH1F(Form("%s_hs_trk_dz_vtx0",prefix.Data()),";dz(trk,vtx0) [cm]",1000,-10.,10.);
