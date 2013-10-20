@@ -90,7 +90,10 @@ private:
   TH1F* h_mc_idx_duplicates_pt;
   TH1F* h_mc_idx_duplicates_nhits;
   TH1F* h_match_dr;
+
   TH1F* h_nvtx;
+  TH1F* h_ntracks;
+
   TH1F* h_gen_match_vtx;
   TH2F* h_gen_match_vtx_vs_nvtx;
 
@@ -107,6 +110,9 @@ private:
   TH1F* h_genvtx_nomatch_smalldz_eff;
   TH1F* h_genvtx_nomatch_largedz_nleps;
   TH1F* h_genvtx_nomatch_largedz_npartons;
+  TH1F* h_genvtx_nomatch_nvtx;
+  TH1F* h_genvtx_nomatch_ntracks;
+
   TH1F* h_genvtx_othermatch_z;
   TH1F* h_genvtx_othermatch_dz;
   TH1F* h_genvtx_othermatch_gensumpt2;
@@ -151,6 +157,10 @@ private:
   TH1F* h_pfjet_beta;
   TH2F* h_pfjet_beta_vs_vtx0_purity_dz;
   TH2F* h_pfjet_beta_vs_nvtx;
+
+  TH1F* h_match_trk_pt;
+  TH1F* h_match_trk_pt_low;
+  TH1F* h_match_trk_pt_mid;
 
   TH1F* h_nomatch_trk_pt;
   TH1F* h_nomatch_trk_pt_low;
