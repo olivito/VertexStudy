@@ -80,6 +80,7 @@ void processNtuple( TString outfileid = "tt_test", TString infile = "/hadoop/cms
   else if (infile.Contains("TTbar_40PU")) sample = Form("ttall_40PU_%s",        outfileid.Data());
   else if (infile.Contains("TTbar_60PU")) sample = Form("ttall_60PU_%s",        outfileid.Data());
   else if (infile.Contains("GluGluToHToGG_M-125")) sample = Form("hgg_m125_%s",  	 outfileid.Data());
+  else if (infile.Contains("GluGluToHToWWTo2LAndTau2Nu_M-125")) sample = Form("hww_m125_%s",  	 outfileid.Data());
   //otherwise
   else sample = Form("boiade_%s", outfileid.Data());
 

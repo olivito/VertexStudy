@@ -18,7 +18,10 @@
 
 bool verbose              = false;
 bool doTenPercent         = false;
-bool requireLeps          = true;
+bool requireLeps          = false;
+bool requireLepsWW        = false;
+bool requireRecoLepsWW    = false;
+bool requireRecoTTbar     = true;
 bool doFiducialVtx        = true;
 
 const float dzcut = 0.1;
@@ -218,6 +221,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
   
   unsigned int nEventsChain = chain->GetEntries();
   unsigned int nEventsTotal = 0;
+  unsigned int nEventsPreReco = 0;
   unsigned int nEventsPass = 0;
   // map isn't needed for this purpose, vector is sufficient
   // better would be to use a struct with run, lb, event
@@ -351,20 +355,25 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
         continue;
       }
    
-      int nleps = 0;
-      int nleps_etaacc = 0;
+      int ngenleps = 0;
+      int ngenleps10 = 0;
+      int ngenleps_etaacc = 0;
       int npartons = 0;
       int npartons_etaacc = 0;
       // loop over genps, count e and mu with pt > 20 gev
       for (unsigned int igen = 0; igen < genps_status().size(); ++igen) {
 	if (genps_status().at(igen) != 3) continue;
+	if (genps_p4().at(igen).pt() < 10.) continue;
+	int id = abs(genps_id().at(igen));
+	if (id == 11 || id == 13) {
+	  ++ngenleps10;
+	}
 	if (genps_p4().at(igen).pt() < 20.) continue;
 	bool passeta = false;
 	if (fabs(genps_p4().at(igen).eta()) < 2.4) passeta = true;
-	int id = abs(genps_id().at(igen));
 	if (id == 11 || id == 13) {
-	  ++nleps;
-	  if (passeta) ++nleps_etaacc;
+	  ++ngenleps;
+	  if (passeta) ++ngenleps_etaacc;
 	} // leptons
 	if ((id < 6) || (id == 21)) {
 	  ++npartons;
@@ -372,13 +381,104 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	} // partons
       }
 
-      if (requireLeps && !nleps) continue;
+      if (requireLeps && !ngenleps) continue;
+      if (requireLepsWW && (ngenleps10 < 2) && (ngenleps < 1)) continue;
 
       // check gen production vtx by looking at status 3 particles
       // and make fiducial cut if requested
       float genvtx_z = genps_prod_vtx().at(2).z();
       h_genvtx_z_nocut->Fill(genvtx_z);
       if (doFiducialVtx && (fabs(genvtx_z) > fidvtx_cut)) continue;
+
+      ++nEventsPreReco;
+
+      //---------------------------------------------
+      // reco electron selection
+      //---------------------------------------------
+
+      std::vector<int> selected_el_idx;
+      int nel20 = 0;
+      int nel10 = 0;
+      for (unsigned int iel = 0; iel < els_p4().size(); ++iel) {
+	// cut on pt and eta
+	if (els_p4().at(iel).pt() < 10.) continue;
+	if (fabs(els_p4().at(iel).eta()) > 2.4) continue;
+	// require ID, no iso
+        if( !passElectronSelection_Stop2012_v3_NoIso( iel,true,true,false) )  continue;
+	// check for gen match: match to gen particle within dR < 0.2
+	bool matched = false;
+	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
+	  int id = fabs(genps_id().at(igen));
+	  if (id != 11) continue;
+	  float dr = dRbetweenVectors(els_p4().at(iel),genps_p4().at(igen));
+	  if (dr < gen_dr_match) {
+	    matched = true;
+	    break;
+	  }
+	}
+	if (!matched) continue;
+	++nel10;
+	selected_el_idx.push_back(iel);
+	if (els_p4().at(iel).pt() > 20.) ++nel20;
+      }
+
+      //---------------------------------------------
+      // reco muon selection
+      //---------------------------------------------
+
+      std::vector<int> selected_mu_idx;
+      int nmu20 = 0;
+      int nmu10 = 0;
+      for (unsigned int imu = 0; imu < mus_p4().size(); ++imu) {
+	// cut on pt and eta
+	if (mus_p4().at(imu).pt() < 10.) continue;
+	if (fabs(mus_p4().at(imu).eta()) > 2.4) continue;
+	// require ID, no iso
+	if (!muonIdNotIsolated(imu, ZMet2012_v1)) continue;
+	// check for gen match: match to gen particle within dR < 0.2
+	bool matched = false;
+	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
+	  int id = fabs(genps_id().at(igen));
+	  if (id != 13) continue;
+	  float dr = dRbetweenVectors(mus_p4().at(imu),genps_p4().at(igen));
+	  if (dr < gen_dr_match) {
+	    matched = true;
+	    break;
+	  }
+	}
+	if (!matched) continue;
+	++nmu10;
+	selected_mu_idx.push_back(imu);
+	if (mus_p4().at(imu).pt() > 20.) ++nmu20;
+      }
+
+      //---------------------------------------------
+      // reco jet selection
+      //---------------------------------------------
+
+      int njets30 = 0;
+      for (unsigned int ijet = 0; ijet < pfjets_p4().size(); ++ijet) {
+	// pt
+	if (pfjets_p4().at(ijet).pt() < 30.) continue;
+	// eta cut for tracker
+	if (fabs(pfjets_p4().at(ijet).eta()) > 2.4) continue;
+	// pf jet id
+	if (!passesPFJetID(ijet)) continue;
+	++njets30;
+      }
+
+      //---------------------------------------------
+      // reco selections
+      //---------------------------------------------
+
+      int nleps10 = nel10 + nmu10;
+      int nleps20 = nel20 + nmu20;
+      if (requireRecoLepsWW && ((nleps10 < 2) || (nleps20 < 1)) ) continue;
+      // select ttbar: hadronic (5 jets), single lep (1l+3j), or dilep (2l+2j)
+      bool pass_ttbar_had = (njets30 >= 5);
+      bool pass_ttbar_1l = (nleps20 >= 1 && njets30 >= 3);
+      bool pass_ttbar_2l = (nleps20 >= 2 && njets30 >= 2);
+      if (requireRecoTTbar && !(pass_ttbar_had || pass_ttbar_1l || pass_ttbar_2l)) continue;
 
       ++nEventsPass;
       float genvtx_sumpt2 = genSumPt2();
@@ -562,7 +662,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	float eff_dz = vtxs_sumpt_hardscatter_dz.at(ivtx)/sum_hardscatter_pt;
 	float eff_weight = vtxs_sumpt_hardscatter_weight.at(ivtx)/sum_hardscatter_pt;
 
-	if (eff_dz < fracpt_gen_vtx_match) continue;
+	//	if (eff_dz < fracpt_gen_vtx_match) continue;
 
 	if (fabs(dz) < mindz_eff10) {
 	  mindz_eff10 = fabs(dz);
@@ -595,6 +695,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	gen_match_vtx = ivtx;
       }
       h_nvtx->Fill(nvtx);
+      h_nvtx_vs_ntrueint->Fill(puInfo_nPUvertices().at(0),nvtx);
       h_gen_match_vtx->Fill(gen_match_vtx);
       h_gen_match_vtx_vs_nvtx->Fill(nvtx,gen_match_vtx);
 
@@ -611,14 +712,14 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	if (mindz_idx > -1) {
 	  h_genvtx_nomatch_dz->Fill(genvtx_z - vtxs_position().at(mindz_idx).z());
 	  std::cout << "     closest vertex dz: " << mindz << std::endl;
-	  std::cout << "     nleps: " << nleps << ", in eta acc: " << nleps_etaacc << std::endl;
+	  std::cout << "     ngenleps: " << ngenleps << ", in eta acc: " << ngenleps_etaacc << std::endl;
 	  std::cout << "     npartons: " << npartons << ", in eta acc: " << npartons_etaacc << std::endl;
 
 	  if (mindz < 0.2) {
 	    h_genvtx_nomatch_smalldz_eff->Fill(vtxs_sumpt_hardscatter_dz.at(mindz_idx)/sum_hardscatter_pt);
 	  } else {
 	    // large dz: check how many leptons and partons were within pt/eta acceptance
-	    h_genvtx_nomatch_largedz_nleps->Fill(nleps_etaacc);
+	    h_genvtx_nomatch_largedz_nleps->Fill(ngenleps_etaacc);
 	    h_genvtx_nomatch_largedz_npartons->Fill(npartons_etaacc);
 	  }
 	} // if mindz_idz > -1
@@ -666,27 +767,10 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       }
 
       //---------------------------------------------
-      // loop over electrons
+      // loop over selected electrons to make plots
       //---------------------------------------------
 
-      for (unsigned int iel = 0; iel < els_p4().size(); ++iel) {
-	// cut on pt and eta
-	if (els_p4().at(iel).pt() < 20.) continue;
-	if (fabs(els_p4().at(iel).eta()) > 2.4) continue;
-	// require ID, no iso
-        if( !passElectronSelection_Stop2012_v3_NoIso( iel,true,true,false) )  continue;
-	// check for gen match: match to gen particle within dR < 0.2
-	bool matched = false;
-	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
-	  int id = fabs(genps_id().at(igen));
-	  if (id != 11) continue;
-	  float dr = dRbetweenVectors(els_p4().at(iel),genps_p4().at(igen));
-	  if (dr < gen_dr_match) {
-	    matched = true;
-	    break;
-	  }
-	}
-	if (!matched) continue;
+      for (unsigned int iel = 0; iel < selected_el_idx.size(); ++iel) {
 	// plot isolation with and without pileup correction, also vs vtx0 purity
 	float iso = electronPFiso(iel);
 	float iso_cor = electronPFiso(iel,true);
@@ -709,27 +793,10 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       }
 
       //---------------------------------------------
-      // loop over muons
+      // loop over selected muons to make plots
       //---------------------------------------------
 
-      for (unsigned int imu = 0; imu < mus_p4().size(); ++imu) {
-	// cut on pt and eta
-	if (mus_p4().at(imu).pt() < 20.) continue;
-	if (fabs(mus_p4().at(imu).eta()) > 2.4) continue;
-	// require ID, no iso
-	if (!muonIdNotIsolated(imu, ZMet2012_v1)) continue;
-	// check for gen match: match to gen particle within dR < 0.2
-	bool matched = false;
-	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
-	  int id = fabs(genps_id().at(igen));
-	  if (id != 13) continue;
-	  float dr = dRbetweenVectors(mus_p4().at(imu),genps_p4().at(igen));
-	  if (dr < gen_dr_match) {
-	    matched = true;
-	    break;
-	  }
-	}
-	if (!matched) continue;
+      for (unsigned int imu = 0; imu < selected_mu_idx.size(); ++imu) {
 	// plot isolation with and without pileup correction, also vs vtx0 purity
 	float iso = muonPFiso(imu);
 	float iso_cor = muonPFiso(imu,true);
@@ -832,6 +899,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
   cout << "Sample: " << prefix << endl;
   cout << endl;
   cout << "Processed events: " << nEventsTotal << endl;
+  cout << "Events before reco cuts: " << nEventsPreReco << endl;
   cout << "Passed events: " << nEventsPass << endl;
   cout << endl;
 
@@ -865,7 +933,7 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   if (outFile) outFile->cd();
 
   const int max_ntracks = 5000;
-  const int max_nvtx = 60;
+  const int max_nvtx = 80;
 
   h_vtx0_hardscatter_pt_vs_sumpt = new TH2F(Form("%s_vtx0_hardscatter_pt_vs_sumpt",prefix.Data()),";vtx0 #Sigma p_{T};vtx0 #Sigma p_{T} from hard scatter",100,0,1000.,100,0,1000.);
   h_vtx0_hardscatter_pt_vs_sumpt_recalc = new TH2F(Form("%s_vtx0_hardscatter_pt_vs_sumpt_recalc",prefix.Data()),";vtx0 #Sigma p_{T};vtx0 #Sigma p_{T} from hard scatter",100,0,1000.,100,0,1000.);
@@ -901,6 +969,7 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_match_dr = new TH1F(Form("%s_match_dr",prefix.Data()),";dR(reco,gen)",40,0.,0.2);
 
   h_nvtx = new TH1F(Form("%s_nvtx",prefix.Data()),";N(vtx)",max_nvtx,0,max_nvtx);
+  h_nvtx_vs_ntrueint = new TH2F(Form("%s_nvtx_vs_ntrueint",prefix.Data()),";N(true int);N(vtx)",max_nvtx,0,max_nvtx,max_nvtx,0,max_nvtx);
   h_ntracks = new TH1F(Form("%s_ntracks",prefix.Data()),";N(tracks)",max_ntracks/10,0,max_ntracks);
 
   h_gen_match_vtx = new TH1F(Form("%s_gen_match_vtx",prefix.Data()),";reco index of true PV",51,-1,50);
@@ -913,7 +982,7 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_recovtx_z = new TH1F(Form("%s_recovtx_z",prefix.Data()),";Z (reco vtx) [cm]",50,-25.,25.);
 
   h_genvtx_nomatch_z = new TH1F(Form("%s_genvtx_nomatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
-  h_genvtx_nomatch_gensumpt2 = new TH1F(Form("%s_genvtx_nomatch_gensumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
+  h_genvtx_nomatch_gensumpt2 = new TH1F(Form("%s_genvtx_nomatch_gensumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_genvtx_nomatch_dz = new TH1F(Form("%s_genvtx_nomatch_dz",prefix.Data()),";dz (gen vtx, closest reco) [cm]",1000,-10.,10.);
   h_genvtx_nomatch_dz_eff10 = new TH1F(Form("%s_genvtx_nomatch_dz_eff10",prefix.Data()),";dz (gen vtx, closest reco) [cm]",1000,-10.,10.);
   h_genvtx_nomatch_smalldz_eff = new TH1F(Form("%s_genvtx_nomatch_smalldz_eff",prefix.Data()),";Frac of track hard scatter p_{T} assoc to vtx",100,0.,1.);

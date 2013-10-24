@@ -92,6 +92,7 @@ private:
   TH1F* h_match_dr;
 
   TH1F* h_nvtx;
+  TH2F* h_nvtx_vs_ntrueint;
   TH1F* h_ntracks;
 
   TH1F* h_gen_match_vtx;
