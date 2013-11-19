@@ -18,10 +18,10 @@
 
 bool verbose              = false;
 bool doTenPercent         = false;
-bool requireLeps          = false;
+bool requireLeps          = true;
+bool requireRecoTTbar     = true;
 bool requireLepsWW        = false;
 bool requireRecoLepsWW    = false;
-bool requireRecoTTbar     = true;
 bool doFiducialVtx        = true;
 
 const float dzcut = 0.1;
@@ -483,6 +483,21 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       ++nEventsPass;
       float genvtx_sumpt2 = genSumPt2();
 
+      // make "lepton type":
+      // 0 for hadronic, no leptons
+      // 1 for single e
+      // 2 for single mu
+      // 3 for ee
+      // 4 for mm
+      // 5 for em
+      int leptype = 0;
+      if (nel20 >= 1 && nel10 >= 2) leptype = 3;
+      else if (nmu20 >= 1 && nmu10 >= 2) leptype = 4;
+      else if ((nmu20 >= 1 && nel10 >= 1) || (nel20 >= 1 && nmu10 >= 1)) leptype = 5;
+      else if (nel20 == 1) leptype = 1;
+      else if (nmu20 == 1) leptype = 2;
+
+
       //---------------------------------------------
       // loop over tracks, associate to vtx
       //---------------------------------------------
@@ -685,11 +700,34 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_genmatch_vtx_z->Fill(vtxs_position().at(ivtx).z());
 	h_genmatch_vtx_sumpt2->Fill(vtxs_sumpt2_weight.at(ivtx));
 
+	h_genmatch_leptype->Fill(leptype);
+
+	// low sumpt2: check for poor electron tracks
+	if (vtxs_sumpt2_weight.at(ivtx) < 500.) {
+	h_genmatch_lowsumpt2_leptype->Fill(leptype);
+	  for (unsigned int iel=0; iel < selected_el_idx.size(); ++iel) {
+	    int trkidx = els_trkidx().at(selected_el_idx.at(iel));
+	    if (trkidx >= 0) {
+	      int weightvtx = trks_pvidx0().at(trkidx);
+	      if (weightvtx == (int)ivtx) h_genmatch_lowsumpt2_eltrkassoc->Fill(1);
+	      else {
+		// check if track passes high purity selection
+		if (!(trks_qualityMask().at(trkidx) & (1<<2))) h_genmatch_lowsumpt2_eltrkassoc->Fill(-1);
+		else h_genmatch_lowsumpt2_eltrkassoc->Fill(0);
+	      }
+	    } else {
+	      // invalid trkref for this electron
+	      h_genmatch_lowsumpt2_eltrkassoc->Fill(-2);
+	    }
+	  } // selected el loop
+	} // low sumpt2
+
 	// if not matched to vtx0
 	if (ivtx > 0) {
 	  h_genvtx_othermatch_z->Fill(genvtx_z);
 	  h_genvtx_othermatch_gensumpt2->Fill(genvtx_sumpt2);
 	  h_genvtx_othermatch_sumpt2->Fill(vtxs_sumpt2_weight.at(ivtx));
+	  h_genvtx_othermatch_leptype->Fill(leptype);
 	}
 
 	gen_match_vtx = ivtx;
@@ -771,11 +809,15 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       //---------------------------------------------
 
       for (unsigned int iel = 0; iel < selected_el_idx.size(); ++iel) {
+	unsigned int el_idx = selected_el_idx.at(iel);
 	// plot isolation with and without pileup correction, also vs vtx0 purity
-	float iso = electronPFiso(iel);
-	float iso_cor = electronPFiso(iel,true);
-	float trkiso = els_iso03_pf2012ext_ch().at(iel)/els_p4().at(iel).pt();
-	float trkiso_abs = els_iso03_pf2012ext_ch().at(iel);
+	float iso = electronPFiso(el_idx);
+	float iso_cor = electronPFiso(el_idx,true);
+	float iso40_cor = electronPFiso40(el_idx,true);
+	float trkiso = els_iso03_pf2012ext_ch().at(el_idx)/els_p4().at(el_idx).pt();
+	float trkiso_abs = els_iso03_pf2012ext_ch().at(el_idx);
+	float trkiso40 = els_iso04_pf2012ext_ch().at(el_idx)/els_p4().at(el_idx).pt();
+	float trkiso40_abs = els_iso04_pf2012ext_ch().at(el_idx);
 
 	h_el_iso->Fill(iso);
 	h_el_iso_cor->Fill(iso_cor);
@@ -783,13 +825,16 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_el_iso_cor_vs_vtx0_purity_dz->Fill(purity_dz,iso_cor);
 	h_el_iso_vs_nvtx->Fill(nvtx,iso);
 	h_el_iso_cor_vs_nvtx->Fill(nvtx,iso_cor);
+	h_el_iso40_cor_vs_nvtx->Fill(nvtx,iso40_cor);
 
 	h_el_trkiso->Fill(trkiso);
 	h_el_trkiso_vs_vtx0_purity_dz->Fill(purity_dz,trkiso);
 	h_el_trkiso_vs_nvtx->Fill(nvtx,trkiso);
+	h_el_trkiso40_vs_nvtx->Fill(nvtx,trkiso40);
 	h_el_trkiso_abs->Fill(trkiso_abs);
 	h_el_trkiso_abs_vs_vtx0_purity_dz->Fill(purity_dz,trkiso_abs);
 	h_el_trkiso_abs_vs_nvtx->Fill(nvtx,trkiso_abs);
+	h_el_trkiso40_abs_vs_nvtx->Fill(nvtx,trkiso40_abs);
       }
 
       //---------------------------------------------
@@ -797,11 +842,15 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       //---------------------------------------------
 
       for (unsigned int imu = 0; imu < selected_mu_idx.size(); ++imu) {
+	unsigned int mu_idx = selected_mu_idx.at(imu);
 	// plot isolation with and without pileup correction, also vs vtx0 purity
-	float iso = muonPFiso(imu);
-	float iso_cor = muonPFiso(imu,true);
-	float trkiso = mus_isoR03_pf_ChargedHadronPt().at(imu)/mus_p4().at(imu).pt();
-	float trkiso_abs = mus_isoR03_pf_ChargedHadronPt().at(imu);
+	float iso = muonPFiso(mu_idx);
+	float iso_cor = muonPFiso(mu_idx,true);
+	float iso40_cor = muonPFiso40(mu_idx,true);
+	float trkiso = mus_isoR03_pf_ChargedHadronPt().at(mu_idx)/mus_p4().at(mu_idx).pt();
+	float trkiso_abs = mus_isoR03_pf_ChargedHadronPt().at(mu_idx);
+	float trkiso40 = mus_isoR04_pf_ChargedHadronPt().at(mu_idx)/mus_p4().at(mu_idx).pt();
+	float trkiso40_abs = mus_isoR04_pf_ChargedHadronPt().at(mu_idx);
 
 	h_mu_iso->Fill(iso);
 	h_mu_iso_cor->Fill(iso_cor);
@@ -809,13 +858,16 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	h_mu_iso_cor_vs_vtx0_purity_dz->Fill(purity_dz,iso_cor);
 	h_mu_iso_vs_nvtx->Fill(nvtx,iso);
 	h_mu_iso_cor_vs_nvtx->Fill(nvtx,iso_cor);
+	h_mu_iso40_cor_vs_nvtx->Fill(nvtx,iso40_cor);
 
 	h_mu_trkiso->Fill(trkiso);
 	h_mu_trkiso_vs_vtx0_purity_dz->Fill(purity_dz,trkiso);
 	h_mu_trkiso_vs_nvtx->Fill(nvtx,trkiso);
+	h_mu_trkiso40_vs_nvtx->Fill(nvtx,trkiso40);
 	h_mu_trkiso_abs->Fill(trkiso_abs);
 	h_mu_trkiso_abs_vs_vtx0_purity_dz->Fill(purity_dz,trkiso_abs);
 	h_mu_trkiso_abs_vs_nvtx->Fill(nvtx,trkiso_abs);
+	h_mu_trkiso40_abs_vs_nvtx->Fill(nvtx,trkiso40_abs);
       }
 
       //---------------------------------------------
@@ -979,7 +1031,11 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_genvtx_z = new TH1F(Form("%s_genvtx_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
   h_genmatch_vtx_sumpt2 = new TH1F(Form("%s_genmatch_vtx_sumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_genmatch_vtx_z = new TH1F(Form("%s_genmatch_vtx_z",prefix.Data()),";Z (gen match vtx) [cm]",50,-25.,25.);
+  h_genmatch_leptype = new TH1F(Form("%s_genmatch_leptype",prefix.Data()),";lep type",6,0.,6.);
   h_recovtx_z = new TH1F(Form("%s_recovtx_z",prefix.Data()),";Z (reco vtx) [cm]",50,-25.,25.);
+
+  h_genmatch_lowsumpt2_leptype = new TH1F(Form("%s_genmatch_lowsumpt2_leptype",prefix.Data()),";lep type",6,0.,6.);
+  h_genmatch_lowsumpt2_eltrkassoc = new TH1F(Form("%s_genmatch_lowsumpt2_eltrkassoc",prefix.Data()),"; el track assoc with vtx",4,-2.,2.);
 
   h_genvtx_nomatch_z = new TH1F(Form("%s_genvtx_nomatch_z",prefix.Data()),";Z (gen vtx) [cm]",50,-25.,25.);
   h_genvtx_nomatch_gensumpt2 = new TH1F(Form("%s_genvtx_nomatch_gensumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
@@ -995,6 +1051,7 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_genvtx_othermatch_dz = new TH1F(Form("%s_genvtx_othermatch_dz",prefix.Data()),";dz (gen vtx, highest #Sigma p_{T}^{2} vtx) [cm]",1000,-10.,10.);
   h_genvtx_othermatch_gensumpt2 = new TH1F(Form("%s_genvtx_othermatch_gensumpt2",prefix.Data()),";Vertex #Sigma gen p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_genvtx_othermatch_sumpt2 = new TH1F(Form("%s_genvtx_othermatch_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
+  h_genvtx_othermatch_leptype = new TH1F(Form("%s_genvtx_othermatch_leptype",prefix.Data()),";lep type",6,0.,6.);
 
   h_vtx_sumpt2 = new TH1F(Form("%s_vtx_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
   h_vtx_nohs_sumpt2 = new TH1F(Form("%s_vtx_nohs_sumpt2",prefix.Data()),";Vertex #Sigma p_{T}^{2} [GeV^{2}]",2500,0.,5000.);
@@ -1009,13 +1066,16 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_el_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_el_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;electron reliso, with PU cor",100,0,1.,200,0.,2.);
   h_el_iso_vs_nvtx = new TH2F(Form("%s_el_iso_vs_nvtx",prefix.Data()),";nvtx;electron reliso, no PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
   h_el_iso_cor_vs_nvtx = new TH2F(Form("%s_el_iso_cor_vs_nvtx",prefix.Data()),";nvtx;electron reliso, with PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
+  h_el_iso40_cor_vs_nvtx = new TH2F(Form("%s_el_iso40_cor_vs_nvtx",prefix.Data()),";nvtx;electron reliso, with PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
 
   h_el_trkiso = new TH1F(Form("%s_el_trkiso",prefix.Data()),";el rel trkiso",1000,0.,2.);
   h_el_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_el_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;el rel trkiso",100,0,1.,1000,0.,2.);
   h_el_trkiso_vs_nvtx = new TH2F(Form("%s_el_trkiso_vs_nvtx",prefix.Data()),";nvtx;el rel trkiso",max_nvtx,0,max_nvtx,1000,0.,2.);
+  h_el_trkiso40_vs_nvtx = new TH2F(Form("%s_el_trkiso40_vs_nvtx",prefix.Data()),";nvtx;el rel trkiso",max_nvtx,0,max_nvtx,1000,0.,2.);
   h_el_trkiso_abs = new TH1F(Form("%s_el_trkiso_abs",prefix.Data()),";el trkiso",1000,0.,10.);
   h_el_trkiso_abs_vs_vtx0_purity_dz = new TH2F(Form("%s_el_trkiso_abs_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;el trkiso",100,0,1.,1000,0.,10.);
   h_el_trkiso_abs_vs_nvtx = new TH2F(Form("%s_el_trkiso_abs_vs_nvtx",prefix.Data()),";nvtx;el trkiso",max_nvtx,0,max_nvtx,1000,0.,10.);
+  h_el_trkiso40_abs_vs_nvtx = new TH2F(Form("%s_el_trkiso40_abs_vs_nvtx",prefix.Data()),";nvtx;el trkiso",max_nvtx,0,max_nvtx,1000,0.,10.);
 
   h_mu_iso = new TH1F(Form("%s_mu_iso",prefix.Data()),";mu reliso, no PU cor",200,0.,2.);
   h_mu_iso_cor = new TH1F(Form("%s_mu_iso_cor",prefix.Data()),";mu reliso, with PU cor",200,0.,2.);
@@ -1023,13 +1083,16 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_mu_iso_cor_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_iso_cor_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu reliso, with PU cor",100,0,1.,200,0.,2.);
   h_mu_iso_vs_nvtx = new TH2F(Form("%s_mu_iso_vs_nvtx",prefix.Data()),";nvtx;mu reliso, no PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
   h_mu_iso_cor_vs_nvtx = new TH2F(Form("%s_mu_iso_cor_vs_nvtx",prefix.Data()),";nvtx;mu reliso, with PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
+  h_mu_iso40_cor_vs_nvtx = new TH2F(Form("%s_mu_iso40_cor_vs_nvtx",prefix.Data()),";nvtx;mu reliso, with PU cor",max_nvtx,0,max_nvtx,200,0.,2.);
 
   h_mu_trkiso = new TH1F(Form("%s_mu_trkiso",prefix.Data()),";mu rel trkiso",1000,0.,2.);
   h_mu_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu rel trkiso",100,0,1.,1000,0.,2.);
   h_mu_trkiso_vs_nvtx = new TH2F(Form("%s_mu_trkiso_vs_nvtx",prefix.Data()),";nvtx;mu rel trkiso",max_nvtx,0,max_nvtx,1000,0.,2.);
+  h_mu_trkiso40_vs_nvtx = new TH2F(Form("%s_mu_trkiso40_vs_nvtx",prefix.Data()),";nvtx;mu rel trkiso",max_nvtx,0,max_nvtx,1000,0.,2.);
   h_mu_trkiso_abs = new TH1F(Form("%s_mu_trkiso_abs",prefix.Data()),";mu trkiso",1000,0.,10.);
   h_mu_trkiso_abs_vs_vtx0_purity_dz = new TH2F(Form("%s_mu_trkiso_abs_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;mu trkiso",100,0,1.,1000,0.,10.);
   h_mu_trkiso_abs_vs_nvtx = new TH2F(Form("%s_mu_trkiso_abs_vs_nvtx",prefix.Data()),";nvtx;mu trkiso",max_nvtx,0,max_nvtx,1000,0.,10.);
+  h_mu_trkiso40_abs_vs_nvtx = new TH2F(Form("%s_mu_trkiso40_abs_vs_nvtx",prefix.Data()),";nvtx;mu trkiso",max_nvtx,0,max_nvtx,1000,0.,10.);
 
   h_ph_trkiso = new TH1F(Form("%s_ph_trkiso",prefix.Data()),";ph trkiso",1000,0.,2.);
   h_ph_trkiso_vs_vtx0_purity_dz = new TH2F(Form("%s_ph_trkiso_vs_vtx0_purity_dz",prefix.Data()),";vtx0 purity;ph trkiso",100,0,1.,1000,0.,2.);
@@ -1097,18 +1160,50 @@ float vertexStudyLooper::electronPFiso(const unsigned int index, const bool cor)
   float etaAbs = fabs(cms2.els_etaSC().at(index));
 
   // get effective area
-  float AEff = 0.;
-  if (etaAbs <= 1.0) AEff = 0.10;
-  else if (etaAbs > 1.0 && etaAbs <= 1.479) AEff = 0.12;
-  else if (etaAbs > 1.479 && etaAbs <= 2.0) AEff = 0.085;
-  else if (etaAbs > 2.0 && etaAbs <= 2.2) AEff = 0.11;
-  else if (etaAbs > 2.2 && etaAbs <= 2.3) AEff = 0.12;
-  else if (etaAbs > 2.3 && etaAbs <= 2.4) AEff = 0.12;
-  else if (etaAbs > 2.4) AEff = 0.13;
+  float AEff = fastJetEffArea03_v1(etaAbs);
+  // float AEff = 0.;
+  // if (etaAbs <= 1.0) AEff = 0.10;
+  // else if (etaAbs > 1.0 && etaAbs <= 1.479) AEff = 0.12;
+  // else if (etaAbs > 1.479 && etaAbs <= 2.0) AEff = 0.085;
+  // else if (etaAbs > 2.0 && etaAbs <= 2.2) AEff = 0.11;
+  // else if (etaAbs > 2.2 && etaAbs <= 2.3) AEff = 0.12;
+  // else if (etaAbs > 2.3 && etaAbs <= 2.4) AEff = 0.12;
+  // else if (etaAbs > 2.4) AEff = 0.13;
 
   float pfiso_ch = cms2.els_iso03_pf2012ext_ch().at(index);
   float pfiso_em = cms2.els_iso03_pf2012ext_em().at(index);
   float pfiso_nh = cms2.els_iso03_pf2012ext_nh().at(index);
+    
+  // rho
+  float rhoPrime = std::max(cms2.evt_kt6pf_foregiso_rho(), float(0.0));
+  float pfiso_n = pfiso_em + pfiso_nh;
+  if (cor) pfiso_n = std::max(pfiso_em + pfiso_nh - rhoPrime * AEff, float(0.0));
+  float pfiso = (pfiso_ch + pfiso_n) / pt;
+
+  return pfiso;
+}
+
+//--------------------------------------------------------------------
+
+float vertexStudyLooper::electronPFiso40(const unsigned int index, const bool cor) {
+    
+  float pt     = cms2.els_p4().at(index).pt();
+  float etaAbs = fabs(cms2.els_etaSC().at(index));
+
+  // get effective area
+  float AEff = fastJetEffArea04_v1(etaAbs);
+  // float AEff = 0.;
+  // if (etaAbs <= 1.0) AEff = 0.10;
+  // else if (etaAbs > 1.0 && etaAbs <= 1.479) AEff = 0.12;
+  // else if (etaAbs > 1.479 && etaAbs <= 2.0) AEff = 0.085;
+  // else if (etaAbs > 2.0 && etaAbs <= 2.2) AEff = 0.11;
+  // else if (etaAbs > 2.2 && etaAbs <= 2.3) AEff = 0.12;
+  // else if (etaAbs > 2.3 && etaAbs <= 2.4) AEff = 0.12;
+  // else if (etaAbs > 2.4) AEff = 0.13;
+
+  float pfiso_ch = cms2.els_iso04_pf2012ext_ch().at(index);
+  float pfiso_em = cms2.els_iso04_pf2012ext_em().at(index);
+  float pfiso_nh = cms2.els_iso04_pf2012ext_nh().at(index);
     
   // rho
   float rhoPrime = std::max(cms2.evt_kt6pf_foregiso_rho(), float(0.0));
@@ -1126,6 +1221,21 @@ float vertexStudyLooper::muonPFiso(const unsigned int imu, const bool cor) {
   float nhiso = cms2.mus_isoR03_pf_NeutralHadronEt().at(imu);
   float emiso = cms2.mus_isoR03_pf_PhotonEt().at(imu);
   float deltaBeta = cms2.mus_isoR03_pf_PUPt().at(imu);
+  float pt = cms2.mus_p4().at(imu).pt();
+
+  float absiso = chiso + nhiso + emiso;
+  if (cor) absiso = chiso + std::max(0.0, nhiso + emiso - 0.5 * deltaBeta);
+  return (absiso / pt);
+
+}
+
+//--------------------------------------------------------------------
+
+float vertexStudyLooper::muonPFiso40(const unsigned int imu, const bool cor) {
+  float chiso = cms2.mus_isoR04_pf_ChargedHadronPt().at(imu);
+  float nhiso = cms2.mus_isoR04_pf_NeutralHadronEt().at(imu);
+  float emiso = cms2.mus_isoR04_pf_PhotonEt().at(imu);
+  float deltaBeta = cms2.mus_isoR04_pf_PUPt().at(imu);
   float pt = cms2.mus_p4().at(imu).pt();
 
   float absiso = chiso + nhiso + emiso;

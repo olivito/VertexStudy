@@ -34,7 +34,9 @@ public:
   void InitBaby();
   int associateTrackToVertexSimple(const unsigned int itrk);
   float electronPFiso(const unsigned int index, const bool cor = false);
+  float electronPFiso40(const unsigned int index, const bool cor = false);
   float muonPFiso(const unsigned int imu, const bool cor = false);
+  float muonPFiso40(const unsigned int imu, const bool cor = false);
   float photonHollowTrkIso(const unsigned int iph);
   float dRbetweenVectors(LorentzVector vec1, LorentzVector vec2 );
   float genSumPt2();
@@ -102,7 +104,11 @@ private:
   TH1F* h_genvtx_z;
   TH1F* h_genmatch_vtx_sumpt2;
   TH1F* h_genmatch_vtx_z;
+  TH1F* h_genmatch_leptype;
   TH1F* h_recovtx_z;
+
+  TH1F* h_genmatch_lowsumpt2_leptype;
+  TH1F* h_genmatch_lowsumpt2_eltrkassoc;
 
   TH1F* h_genvtx_nomatch_z;
   TH1F* h_genvtx_nomatch_gensumpt2;
@@ -118,6 +124,7 @@ private:
   TH1F* h_genvtx_othermatch_dz;
   TH1F* h_genvtx_othermatch_gensumpt2;
   TH1F* h_genvtx_othermatch_sumpt2;
+  TH1F* h_genvtx_othermatch_leptype;
 
   TH1F* h_vtx_sumpt2;
   TH1F* h_vtx_nohs_sumpt2;
@@ -131,12 +138,15 @@ private:
   TH2F* h_el_iso_cor_vs_vtx0_purity_dz;
   TH2F* h_el_iso_vs_nvtx;
   TH2F* h_el_iso_cor_vs_nvtx;
+  TH2F* h_el_iso40_cor_vs_nvtx;
   TH1F* h_el_trkiso;
   TH2F* h_el_trkiso_vs_vtx0_purity_dz;
   TH2F* h_el_trkiso_vs_nvtx;
+  TH2F* h_el_trkiso40_vs_nvtx;
   TH1F* h_el_trkiso_abs;
   TH2F* h_el_trkiso_abs_vs_vtx0_purity_dz;
   TH2F* h_el_trkiso_abs_vs_nvtx;
+  TH2F* h_el_trkiso40_abs_vs_nvtx;
 
   TH1F* h_mu_iso;
   TH1F* h_mu_iso_cor;
@@ -144,12 +154,15 @@ private:
   TH2F* h_mu_iso_cor_vs_vtx0_purity_dz;
   TH2F* h_mu_iso_vs_nvtx;
   TH2F* h_mu_iso_cor_vs_nvtx;
+  TH2F* h_mu_iso40_cor_vs_nvtx;
   TH1F* h_mu_trkiso;
   TH2F* h_mu_trkiso_vs_vtx0_purity_dz;
   TH2F* h_mu_trkiso_vs_nvtx;
+  TH2F* h_mu_trkiso40_vs_nvtx;
   TH1F* h_mu_trkiso_abs;
   TH2F* h_mu_trkiso_abs_vs_vtx0_purity_dz;
   TH2F* h_mu_trkiso_abs_vs_nvtx;
+  TH2F* h_mu_trkiso40_abs_vs_nvtx;
 
   TH1F* h_ph_trkiso;
   TH2F* h_ph_trkiso_vs_vtx0_purity_dz;
