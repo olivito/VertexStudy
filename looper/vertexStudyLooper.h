@@ -61,6 +61,7 @@ private:
   TFile* outFile;
 
   // histograms
+  TH1F* h_vtx0_genvtx_dz;
   TH2F* h_vtx0_hardscatter_pt_vs_sumpt;
   TH2F* h_vtx0_hardscatter_pt_vs_sumpt_recalc;
   TH2F* h_vtx0_sumpt_vs_sumpt_recalc;
@@ -106,6 +107,7 @@ private:
   TH1F* h_genmatch_vtx_z;
   TH1F* h_genmatch_leptype;
   TH1F* h_recovtx_z;
+  TH1F* h_genvtx_reco_dz;
 
   TH1F* h_genmatch_lowsumpt2_leptype;
   TH1F* h_genmatch_lowsumpt2_eltrkassoc;

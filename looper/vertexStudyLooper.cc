@@ -404,7 +404,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	if (els_p4().at(iel).pt() < 10.) continue;
 	if (fabs(els_p4().at(iel).eta()) > 2.4) continue;
 	// require ID, no iso
-        if( !passElectronSelection_Stop2012_v3_NoIso( iel,true,true,false) )  continue;
+	// !!!!! ID includes dz cut, which we don't want for this study
+	//        if( !passElectronSelection_Stop2012_v3_NoIso( iel,true,true,false) )  continue;
 	// check for gen match: match to gen particle within dR < 0.2
 	bool matched = false;
 	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
@@ -434,7 +435,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	if (mus_p4().at(imu).pt() < 10.) continue;
 	if (fabs(mus_p4().at(imu).eta()) > 2.4) continue;
 	// require ID, no iso
-	if (!muonIdNotIsolated(imu, ZMet2012_v1)) continue;
+	// !!!!! ID includes dz cut, which we don't want for this study
+	//	if (!muonIdNotIsolated(imu, ZMet2012_v1)) continue;
 	// check for gen match: match to gen particle within dR < 0.2
 	bool matched = false;
 	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
@@ -738,6 +740,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       h_gen_match_vtx_vs_nvtx->Fill(nvtx,gen_match_vtx);
 
       h_genvtx_z->Fill(genvtx_z);
+      h_genvtx_reco_dz->Fill(mindz);
 
       // no matched vertex
       if (gen_match_vtx == -1) {
@@ -779,6 +782,7 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
       //---------------------------------------------
 
       const int vtx0 = 0;
+      h_vtx0_genvtx_dz->Fill(genvtx_z - vtxs_position().at(vtx0).z());
       float purity_dz = vtxs_sumpt_hardscatter_dz.at(vtx0)/vtxs_sumpt_recalc_dz.at(vtx0);
       float purity_weight = vtxs_sumpt_hardscatter_weight.at(vtx0)/vtxs_sumpt_recalc_weight.at(vtx0);
       h_vtx0_purity_dz->Fill(purity_dz);
@@ -987,6 +991,7 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   const int max_ntracks = 5000;
   const int max_nvtx = 80;
 
+  h_vtx0_genvtx_dz = new TH1F(Form("%s_vtx0_genvtx_dz",prefix.Data()),";dz (gen vtx, reco vtx0) [cm]",10000,-10.,10.);
   h_vtx0_hardscatter_pt_vs_sumpt = new TH2F(Form("%s_vtx0_hardscatter_pt_vs_sumpt",prefix.Data()),";vtx0 #Sigma p_{T};vtx0 #Sigma p_{T} from hard scatter",100,0,1000.,100,0,1000.);
   h_vtx0_hardscatter_pt_vs_sumpt_recalc = new TH2F(Form("%s_vtx0_hardscatter_pt_vs_sumpt_recalc",prefix.Data()),";vtx0 #Sigma p_{T};vtx0 #Sigma p_{T} from hard scatter",100,0,1000.,100,0,1000.);
   h_vtx0_sumpt_vs_sumpt_recalc = new TH2F(Form("%s_vtx0_sumpt_vs_sumpt_recalc",prefix.Data()),";vtx0 #Sigma p_{T}, recalc;vtx0 #Sigma p_{T}",100,0,1000.,100,0,1000.);
@@ -1033,6 +1038,7 @@ void vertexStudyLooper::BookHistos(const TString& prefix)
   h_genmatch_vtx_z = new TH1F(Form("%s_genmatch_vtx_z",prefix.Data()),";Z (gen match vtx) [cm]",50,-25.,25.);
   h_genmatch_leptype = new TH1F(Form("%s_genmatch_leptype",prefix.Data()),";lep type",6,0.,6.);
   h_recovtx_z = new TH1F(Form("%s_recovtx_z",prefix.Data()),";Z (reco vtx) [cm]",50,-25.,25.);
+  h_genvtx_reco_dz = new TH1F(Form("%s_genvtx_reco_dz",prefix.Data()),";dz (gen vtx, closest reco) [cm]",1000,-10.,10.);
 
   h_genmatch_lowsumpt2_leptype = new TH1F(Form("%s_genmatch_lowsumpt2_leptype",prefix.Data()),";lep type",6,0.,6.);
   h_genmatch_lowsumpt2_eltrkassoc = new TH1F(Form("%s_genmatch_lowsumpt2_eltrkassoc",prefix.Data()),"; el track assoc with vtx",4,-2.,2.);
