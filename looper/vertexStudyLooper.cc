@@ -404,8 +404,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	if (els_p4().at(iel).pt() < 10.) continue;
 	if (fabs(els_p4().at(iel).eta()) > 2.4) continue;
 	// require ID, no iso
-	// !!!!! ID includes dz cut, which we don't want for this study
-	//        if( !passElectronSelection_Stop2012_v3_NoIso( iel,true,true,false) )  continue;
+	// !!! note that the dz, dxy cuts are commented out in CORE to avoid biases!
+	if( !passElectronSelection_Stop2012_v3_NoIso( iel,true,true,false) )  continue;
 	// check for gen match: match to gen particle within dR < 0.2
 	bool matched = false;
 	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
@@ -435,8 +435,8 @@ int vertexStudyLooper::ScanChain(TChain* chain, const TString& prefix)
 	if (mus_p4().at(imu).pt() < 10.) continue;
 	if (fabs(mus_p4().at(imu).eta()) > 2.4) continue;
 	// require ID, no iso
-	// !!!!! ID includes dz cut, which we don't want for this study
-	//	if (!muonIdNotIsolated(imu, ZMet2012_v1)) continue;
+	// !!! note that the dz, dxy cuts are commented out in CORE to avoid biases!
+	if (!muonIdNotIsolated(imu, ZMet2012_v1)) continue;
 	// check for gen match: match to gen particle within dR < 0.2
 	bool matched = false;
 	for (unsigned int igen = 0; igen < genps_id().size(); ++igen) {
